@@ -20,6 +20,9 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
       SERVER_PORT: ${SERVER_PORT:-3000}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
     ports:
       - "${SERVER_PORT:-3000}:3000"
     depends_on:

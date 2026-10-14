@@ -18,10 +18,14 @@ export class InMemoryNodeRepository implements NodeRepository {
 }
 
 export class FixedClock implements Clock {
-  constructor(private readonly current: Date) {}
+  constructor(private current: Date) {}
 
   now(): Date {
     return this.current;
+  }
+
+  advance(milliseconds: number): void {
+    this.current = new Date(this.current.getTime() + milliseconds);
   }
 }
 

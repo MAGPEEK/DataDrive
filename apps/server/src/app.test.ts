@@ -1,38 +1,42 @@
-import { testDependencies } from "@datadrive/application";
-import type { FastifyInstance } from "fastify";
 import { beforeEach, describe, expect, it } from "vitest";
-import { buildApp } from "./app.js";
+import { createTestContext, type TestContext } from "./test-support.js";
 
-let app: FastifyInstance;
+let ctx: TestContext;
 
-beforeEach(() => {
-  app = buildApp({
-    deps: testDependencies(),
-    authenticate: (request) => (request.headers["x-test-user"] as string | undefined) ?? null,
-  });
+beforeEach(async () => {
+  ctx = await createTestContext();
 });
 
-const as = (user: string) => ({ "x-test-user": user });
-
-const createFolder = (user: string, name: string) =>
-  app.inject({ method: "POST", url: "/api/v1/folders", headers: as(user), payload: { name } });
+const createFolder = async (user: string, name: string) =>
+  ctx.app.inject({
+    method: "POST",
+    url: "/api/v1/folders",
+    headers: await ctx.as(user),
+    payload: { name },
+  });
 
 const listNodes = async (user: string): Promise<unknown[]> =>
-  (await app.inject({ method: "GET", url: "/api/v1/nodes", headers: as(user) })).json();
+  (
+    await ctx.app.inject({ method: "GET", url: "/api/v1/nodes", headers: await ctx.as(user) })
+  ).json();
 
-const action = (user: string, id: string, verb: "trash" | "restore") =>
-  app.inject({ method: "POST", url: `/api/v1/nodes/${id}/${verb}`, headers: as(user) });
+const action = async (user: string, id: string, verb: "trash" | "restore") =>
+  ctx.app.inject({
+    method: "POST",
+    url: `/api/v1/nodes/${id}/${verb}`,
+    headers: await ctx.as(user),
+  });
 
 describe("health", () => {
   it("reports ok without authentication", async () => {
-    const response = await app.inject({ method: "GET", url: "/health" });
+    const response = await ctx.app.inject({ method: "GET", url: "/health" });
     expect(response.json()).toEqual({ status: "ok" });
   });
 });
 
 describe("folder api", () => {
   it("rejects unauthenticated calls", async () => {
-    const response = await app.inject({ method: "GET", url: "/api/v1/nodes" });
+    const response = await ctx.app.inject({ method: "GET", url: "/api/v1/nodes" });
     expect(response.statusCode).toBe(401);
   });
 
@@ -63,10 +67,10 @@ describe("folder api", () => {
   });
 
   it("rejects malformed bodies", async () => {
-    const response = await app.inject({
+    const response = await ctx.app.inject({
       method: "POST",
       url: "/api/v1/folders",
-      headers: as("alice"),
+      headers: await ctx.as("alice"),
       payload: { nope: 1 },
     });
     expect(response.statusCode).toBe(400);

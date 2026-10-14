@@ -7,11 +7,30 @@ services:
       context: .
       target: dev
     working_dir: /repo
+    environment:
+      TEST_DATABASE_URL: postgres://datadrive:test@postgres-test:5432/datadrive_test
+    depends_on:
+      postgres-test:
+        condition: service_healthy
     volumes:
       - .:/repo
       - node_modules:/repo/node_modules
       - pnpm_store:/root/.local/share/pnpm/store
     command: sh
+
+  postgres-test:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: datadrive
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: datadrive_test
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U datadrive -d datadrive_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
 
 volumes:
   node_modules:

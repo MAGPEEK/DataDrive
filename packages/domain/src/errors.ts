@@ -31,3 +31,9 @@ export class NotInTrashError extends DomainError {
     super("not_in_trash", `Node ${id} is not in the trash`);
   }
 }
+
+export class ForbiddenError extends DomainError {
+  constructor(message = "You are not allowed to do this") {
+    super("forbidden", message);
+  }
+}
