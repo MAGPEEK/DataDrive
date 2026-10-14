@@ -20,7 +20,8 @@ export default tseslint.config(
     },
   },
   {
-    files: ["**/*.test.ts", "**/*.test.tsx"],
-    rules: { "max-lines-per-function": "off", "max-params": "off" },
+    // Test doubles and fixtures are held to a looser standard than production code.
+    files: ["**/testing/**", "**/*.test.ts", "**/*.test.tsx"],
+    rules: { "max-lines-per-function": "off", "max-params": "off", complexity: "off" },
   },
 );

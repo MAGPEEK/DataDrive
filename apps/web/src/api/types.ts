@@ -17,6 +17,15 @@ export interface DriveInfo {
   readonly role: DriveRole;
 }
 
+export interface Capabilities {
+  readonly canRead: boolean;
+  readonly canWrite: boolean;
+  readonly canDelete: boolean;
+  readonly canRename: boolean;
+  readonly canShare: boolean;
+  readonly canDownload: boolean;
+}
+
 export interface NodeInfo {
   readonly id: string;
   readonly driveId: string;
@@ -27,9 +36,16 @@ export interface NodeInfo {
   readonly createdAt: string;
   readonly modifiedAt: string;
   readonly trashedAt: string | null;
+  readonly starred: boolean;
+  readonly capabilities: Capabilities;
 }
 
 export type Place = {
   readonly driveId: string;
   readonly parentId: string | null;
 };
+
+export interface PathItem {
+  readonly id: string;
+  readonly name: string;
+}

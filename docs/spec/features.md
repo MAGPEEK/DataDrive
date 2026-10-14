@@ -12,7 +12,7 @@ Priorität: P0 Kern, P1 Ausbau, P2 Erweiterung.
 | F1.3 | Team-Ordner mit Rechten (lesen/schreiben/verwalten) | P0 | teilweise (Rollen viewer/editor/manager, Gruppen) |
 | F1.4 | Ansicht "Für mich freigegeben" | P0 | offen |
 | F1.5 | Persönliche und gemeinsame Labels | P1 | offen |
-| F1.6 | Papierkorb, Suche, Zuletzt verwendet | P1 | teilweise (Papierkorb mit Liste und Wiederherstellen in API und Web; Suche, Zuletzt fehlen) |
+| F1.6 | Papierkorb, Suche, Zuletzt verwendet | P1 | teilweise (Papierkorb, Suche nach Namen, Zuletzt verwendet in API und Web; Inhaltssuche fehlt) |
 | F1.7 | Quotas pro Benutzer/Ordner | P1 | teilweise (Quota je Laufwerk, 413) |
 
 ## F2 Synchronisierung
@@ -112,3 +112,19 @@ Priorität: P0 Kern, P1 Ausbau, P2 Erweiterung.
 - Selbst hostbar per Docker Compose, keine Lizenzschlüssel, keine Cloud-Pflicht.
 - Skalierbar von kleinem Heimserver bis Rechenzentrum.
 - Offene API und Formate, Export aller Daten (Unabhängigkeit).
+
+## F12 Bedienung der Weboberfläche (am Referenzsystem orientiert)
+| ID | Funktion | Prio | Status |
+|---|---|---|---|
+| F12.1 | Kategorien: Mein Laufwerk, Team-Ordner, Zuletzt verwendet, Mit Stern, Papierkorb | P0 | implementiert (Geteilt, Anforderungen, Labels folgen) |
+| F12.2 | Auswahl (Klick, Strg, Umschalt), Werkzeugleiste passend zur Auswahl | P0 | implementiert |
+| F12.3 | Kontextmenü, Doppelklick öffnet, Tastatur (Pfeile, Enter, F2, Entf, Strg+A) | P0 | implementiert |
+| F12.4 | Sternchen je Benutzer | P1 | implementiert |
+| F12.5 | Umbenennen direkt in der Liste, Ordner anlegen mit sofortigem Umbenennen | P1 | implementiert |
+| F12.6 | Verschieben per Dialog und per Drag & Drop (auch auf Pfadleiste) | P1 | implementiert |
+| F12.7 | Rückgängig nach Löschen, Sofort-Rückmeldung (optimistische Änderung, Rollback bei Fehler) | P1 | implementiert |
+| F12.8 | Upload-Anzeige, Drag & Drop vom Desktop | P1 | implementiert (ohne Fortschritt in Prozent) |
+| F12.9 | Sortierung nach Name, Änderung, Größe; Ordner zuerst | P1 | implementiert |
+| F12.10 | Suche während der Eingabe, "Im Ordner anzeigen" | P1 | implementiert |
+| F12.11 | Details-Bereich | P2 | teilweise (Eigenschaften; Versionen, Freigaben folgen) |
+| F12.12 | Raster-/Vorschauansicht, Vorschau von Bildern und PDF | P2 | offen |

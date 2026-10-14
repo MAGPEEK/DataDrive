@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import type { DriveInfo, DriveRole, NodeInfo, Place, User } from "../api/types";
+import type { Capabilities, DriveInfo, DriveRole, NodeInfo, Place, User } from "../api/types";
 
 export interface Call {
   readonly method: string;
@@ -16,18 +16,37 @@ export interface FakeBackendOptions {
   readonly signedIn?: boolean;
   readonly requireOtp?: boolean;
   readonly teamRole?: DriveRole | null;
+  /** Makes list requests slow, to check that the UI reacts before the server answers. */
+  readonly delayMs?: number;
 }
 
 const USER: User = { id: "u1", username: "alice", role: "user", totpEnabled: false };
 const PASSWORD = "correct horse battery";
 const OTP = "123456";
 const NOW = "2026-10-14T12:00:00.000Z";
+const FULL: Capabilities = {
+  canRead: true,
+  canWrite: true,
+  canDelete: true,
+  canRename: true,
+  canShare: true,
+  canDownload: true,
+};
+const READ_ONLY: Capabilities = {
+  ...FULL,
+  canWrite: false,
+  canDelete: false,
+  canRename: false,
+  canShare: false,
+};
 
 const error = (status: number, code: string): Reply => ({
   status,
   body: { error: code, message: code },
 });
+const sameName = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
+/** A small in-memory server that speaks the DataDrive API, for UI tests. */
 export class FakeBackend {
   readonly calls: Call[] = [];
   readonly nodes: NodeInfo[] = [];
@@ -45,33 +64,38 @@ export class FakeBackend {
     );
   }
 
-  addFolder(name: string, driveId = "u1", parentId: string | null = null): NodeInfo {
-    return this.add({ name, kind: "folder", driveId, parentId, size: 0 });
+  addFolder(name: string, place: Partial<Place> = {}): NodeInfo {
+    return this.add({ name, kind: "folder", size: 0 }, place);
   }
 
   addFile(name: string, size: number, place: Partial<Place> = {}): NodeInfo {
-    return this.add({
-      name,
-      kind: "file",
-      driveId: place.driveId ?? "u1",
-      parentId: place.parentId ?? null,
-      size,
-    });
+    return this.add({ name, kind: "file", size }, place);
   }
 
-  private add(
-    partial: Pick<NodeInfo, "name" | "kind" | "driveId" | "parentId" | "size">,
-  ): NodeInfo {
+  find(name: string): NodeInfo | undefined {
+    return this.nodes.find((n) => n.name === name);
+  }
+
+  private add(partial: Pick<NodeInfo, "name" | "kind" | "size">, place: Partial<Place>): NodeInfo {
     this.counter += 1;
+    const driveId = place.driveId ?? "u1";
     const node: NodeInfo = {
       id: `n${this.counter}`,
+      driveId,
+      parentId: place.parentId ?? null,
       createdAt: NOW,
       modifiedAt: NOW,
       trashedAt: null,
+      starred: false,
+      capabilities: this.capabilitiesIn(driveId),
       ...partial,
     };
     this.nodes.push(node);
     return node;
+  }
+
+  private capabilitiesIn(driveId: string): Capabilities {
+    return driveId === "t1" && this.options.teamRole === "viewer" ? READ_ONLY : FULL;
   }
 
   private drives(): DriveInfo[] {
@@ -96,6 +120,9 @@ export class FakeBackend {
     const method = init.method ?? "GET";
     const body = typeof init.body === "string" ? (JSON.parse(init.body) as unknown) : init.body;
     this.calls.push({ method, path: url.pathname + url.search, body });
+    if (this.options.delayMs !== undefined && method === "GET") {
+      await new Promise((resolve) => setTimeout(resolve, this.options.delayMs));
+    }
     const reply = this.route(method, url, body);
     const text = reply.body === undefined ? "" : JSON.stringify(reply.body);
     return new Response(reply.status === 204 ? null : text, { status: reply.status });
@@ -126,6 +153,10 @@ export class FakeBackend {
     return { status: 204 };
   }
 
+  private live(): NodeInfo[] {
+    return this.nodes.filter((n) => n.trashedAt === null);
+  }
+
   private api(method: string, url: URL, body: unknown): Reply {
     const path = url.pathname;
     const driveId = url.searchParams.get("driveId") ?? "u1";
@@ -136,48 +167,105 @@ export class FakeBackend {
         status: 200,
         body: this.nodes.filter((n) => n.driveId === driveId && n.trashedAt !== null),
       };
+    if (path === "/api/v1/recent")
+      return { status: 200, body: this.live().filter((n) => n.kind === "file") };
+    if (path === "/api/v1/starred")
+      return { status: 200, body: this.live().filter((n) => n.starred) };
+    if (path === "/api/v1/search") return this.search(url.searchParams.get("q") ?? "");
     if (path === "/api/v1/folders")
       return this.createFolder(body as { name: string; driveId: string; parentId: string | null });
     if (path === "/api/v1/files" && method === "PUT") return this.upload(url);
-    return this.nodeAction(path);
+    return this.nodeRoute(method, path, body);
   }
 
   private list(driveId: string, parentId: string | null): Reply {
-    const items = this.nodes.filter(
-      (n) => n.driveId === driveId && n.parentId === parentId && n.trashedAt === null,
-    );
-    return { status: 200, body: items };
+    return {
+      status: 200,
+      body: this.live().filter((n) => n.driveId === driveId && n.parentId === parentId),
+    };
   }
 
-  private createFolder(body: { name: string; driveId: string; parentId: string | null }): Reply {
-    const clash = this.nodes.some(
+  private search(term: string): Reply {
+    return {
+      status: 200,
+      body: this.live().filter((n) => n.name.toLowerCase().includes(term.toLowerCase())),
+    };
+  }
+
+  private clash(name: string, driveId: string, parentId: string | null, ignoreId = ""): boolean {
+    return this.live().some(
       (n) =>
-        n.driveId === body.driveId &&
-        n.parentId === body.parentId &&
-        n.trashedAt === null &&
-        n.name.toLowerCase() === body.name.toLowerCase(),
+        n.id !== ignoreId &&
+        n.driveId === driveId &&
+        n.parentId === parentId &&
+        sameName(n.name, name),
     );
-    if (clash) return error(409, "name_conflict");
-    return { status: 201, body: this.addFolder(body.name, body.driveId, body.parentId) };
+  }
+
+  private createFolder(body: { name: string; driveId?: string; parentId?: string | null }): Reply {
+    const place = { driveId: body.driveId ?? "u1", parentId: body.parentId ?? null };
+    if (this.clash(body.name, place.driveId, place.parentId)) return error(409, "name_conflict");
+    return { status: 201, body: this.addFolder(body.name, place) };
   }
 
   private upload(url: URL): Reply {
-    const driveId = url.searchParams.get("driveId") ?? "u1";
-    const node = this.addFile(url.searchParams.get("name") ?? "file", 10, {
-      driveId,
+    const place = {
+      driveId: url.searchParams.get("driveId") ?? "u1",
       parentId: url.searchParams.get("parentId"),
-    });
-    return { status: 201, body: node };
+    };
+    const name = url.searchParams.get("name") ?? "file";
+    if (this.options.teamRole === "viewer" && place.driveId === "t1")
+      return error(403, "forbidden");
+    return { status: 201, body: this.addFile(name, 10, place) };
   }
 
-  private nodeAction(path: string): Reply {
-    const match = /^\/api\/v1\/nodes\/([^/]+)\/(trash|restore)$/u.exec(path);
-    const index = this.nodes.findIndex((n) => n.id === match?.[1]);
-    if (match === null || index < 0) return error(404, "not_found");
-    const node = this.nodes[index] as NodeInfo;
-    const updated: NodeInfo = { ...node, trashedAt: match[2] === "trash" ? NOW : null };
+  private replace(id: string, change: (node: NodeInfo) => NodeInfo): NodeInfo | null {
+    const index = this.nodes.findIndex((n) => n.id === id);
+    if (index < 0) return null;
+    const updated = change(this.nodes[index] as NodeInfo);
     this.nodes[index] = updated;
-    return { status: 200, body: updated };
+    return updated;
+  }
+
+  private nodeRoute(method: string, path: string, body: unknown): Reply {
+    const match = /^\/api\/v1\/nodes\/([^/]+)(?:\/(trash|restore|move|star|path))?$/u.exec(path);
+    const node = this.nodes.find((n) => n.id === match?.[1]);
+    if (match === null || node === undefined) return error(404, "not_found");
+    const action = match[2];
+    if (action === undefined) return this.rename(node, (body as { name: string }).name);
+    if (action === "path") return { status: 200, body: this.pathOf(node) };
+    if (action === "star") return this.star(node.id, method === "PUT");
+    if (action === "move") return this.move(node, (body as { parentId: string | null }).parentId);
+    return {
+      status: 200,
+      body: this.replace(node.id, (n) => ({ ...n, trashedAt: action === "trash" ? NOW : null })),
+    };
+  }
+
+  private rename(node: NodeInfo, name: string): Reply {
+    if (this.clash(name, node.driveId, node.parentId, node.id)) return error(409, "name_conflict");
+    return { status: 200, body: this.replace(node.id, (n) => ({ ...n, name })) };
+  }
+
+  private move(node: NodeInfo, parentId: string | null): Reply {
+    if (parentId === node.id) return error(400, "invalid_move");
+    if (this.clash(node.name, node.driveId, parentId, node.id)) return error(409, "name_conflict");
+    return { status: 200, body: this.replace(node.id, (n) => ({ ...n, parentId })) };
+  }
+
+  private star(id: string, starred: boolean): Reply {
+    this.replace(id, (n) => ({ ...n, starred }));
+    return { status: 204 };
+  }
+
+  private pathOf(node: NodeInfo): { id: string; name: string }[] {
+    const chain: { id: string; name: string }[] = [];
+    let parent = this.nodes.find((n) => n.id === node.parentId);
+    while (parent !== undefined) {
+      chain.unshift({ id: parent.id, name: parent.name });
+      parent = this.nodes.find((n) => n.id === parent?.parentId);
+    }
+    return chain;
   }
 }
 
