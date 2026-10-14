@@ -3,7 +3,7 @@ import { InvalidNameError, NameConflictError } from "./errors.js";
 import { createFolder, moveToTrash, restoreFromTrash, type DriveNode } from "./node.js";
 
 const now = new Date("2026-10-14T12:00:00Z");
-const input = { id: "n1", ownerId: "u1", parentId: null, name: "Fotos", now };
+const input = { id: "n1", driveId: "u1", parentId: null, name: "Fotos", now };
 
 function folder(overrides: Partial<DriveNode> = {}): DriveNode {
   return { ...createFolder(input, []), ...overrides };

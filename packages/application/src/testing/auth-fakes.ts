@@ -8,7 +8,8 @@ import type {
   TotpService,
   UserRepository,
 } from "../auth-ports.js";
-import { FixedClock, SequentialIds } from "./in-memory.js";
+import type { Dependencies } from "../ports.js";
+import { testDependencies } from "./in-memory.js";
 
 export class InMemoryUserRepository implements UserRepository {
   private readonly store = new Map<string, User>();
@@ -90,16 +91,16 @@ export class FixedCodeTotp implements TotpService {
   }
 }
 
-export function testAuthDependencies(
-  clock = new FixedClock(new Date("2026-10-14T12:00:00Z")),
-): AuthDependencies {
+/** Auth dependencies sharing drives, clock and ids with the given application dependencies. */
+export function testAuthDependencies(shared: Dependencies = testDependencies()): AuthDependencies {
   return {
     users: new InMemoryUserRepository(),
+    drives: shared.drives,
     sessions: new InMemorySessionRepository(),
     hasher: new PlainHasher(),
     tokens: new CountingTokens(),
     totp: new FixedCodeTotp(),
-    clock,
-    ids: new SequentialIds(),
+    clock: shared.clock,
+    ids: shared.ids,
   };
 }

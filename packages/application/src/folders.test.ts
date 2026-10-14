@@ -1,67 +1,82 @@
-import { describe, expect, it } from "vitest";
 import { NameConflictError, NotFoundError, NotInTrashError } from "@datadrive/domain";
+import { describe, expect, it } from "vitest";
 import {
   createFolderUseCase,
   listChildrenUseCase,
   restoreNodeUseCase,
   trashNodeUseCase,
 } from "./folders.js";
-import { testDependencies } from "./testing/in-memory.js";
+import { createWorld } from "./testing/world.js";
 
-const alice = "alice";
-const bob = "bob";
+const root = { parentId: null };
 
 describe("folders", () => {
-  it("creates and lists folders in the personal root", async () => {
-    const deps = testDependencies();
-    await createFolderUseCase(deps, { ownerId: alice, parentId: null, name: "Fotos" });
-    const names = (await listChildrenUseCase(deps, alice, null)).map((n) => n.name);
+  it("creates and lists folders in the personal drive", async () => {
+    const world = createWorld();
+    const alice = await world.user("alice");
+    await createFolderUseCase(world.deps, alice, { ...root, name: "Fotos" });
+    const names = (await listChildrenUseCase(world.deps, alice, root)).map((n) => n.name);
     expect(names).toEqual(["Fotos"]);
   });
 
-  it("creates nested folders", async () => {
-    const deps = testDependencies();
-    const parent = await createFolderUseCase(deps, { ownerId: alice, parentId: null, name: "A" });
-    await createFolderUseCase(deps, { ownerId: alice, parentId: parent.id, name: "B" });
-    expect(await listChildrenUseCase(deps, alice, parent.id)).toHaveLength(1);
+  it("creates nested folders in the drive of the parent", async () => {
+    const world = createWorld();
+    const alice = await world.user("alice");
+    const parent = await createFolderUseCase(world.deps, alice, { ...root, name: "A" });
+    const child = await createFolderUseCase(world.deps, alice, { parentId: parent.id, name: "B" });
+    expect(child.driveId).toBe(alice.id);
+    expect(await listChildrenUseCase(world.deps, alice, { parentId: parent.id })).toHaveLength(1);
   });
 
   it("rejects duplicate names", async () => {
-    const deps = testDependencies();
-    await createFolderUseCase(deps, { ownerId: alice, parentId: null, name: "A" });
-    await expect(
-      createFolderUseCase(deps, { ownerId: alice, parentId: null, name: "a" }),
-    ).rejects.toThrow(NameConflictError);
+    const world = createWorld();
+    const alice = await world.user("alice");
+    await createFolderUseCase(world.deps, alice, { ...root, name: "A" });
+    await expect(createFolderUseCase(world.deps, alice, { ...root, name: "a" })).rejects.toThrow(
+      NameConflictError,
+    );
   });
 
-  it("keeps users separated", async () => {
-    const deps = testDependencies();
-    const folder = await createFolderUseCase(deps, { ownerId: alice, parentId: null, name: "A" });
-    expect(await listChildrenUseCase(deps, bob, null)).toEqual([]);
-    await expect(listChildrenUseCase(deps, bob, folder.id)).rejects.toThrow(NotFoundError);
-    await expect(trashNodeUseCase(deps, bob, folder.id)).rejects.toThrow(NotFoundError);
+  it("keeps personal drives separated", async () => {
+    const world = createWorld();
+    const alice = await world.user("alice");
+    const bob = await world.user("bob");
+    const folder = await createFolderUseCase(world.deps, alice, { ...root, name: "A" });
+    expect(await listChildrenUseCase(world.deps, bob, root)).toEqual([]);
+    await expect(
+      listChildrenUseCase(world.deps, bob, { driveId: alice.id, parentId: null }),
+    ).rejects.toThrow(NotFoundError);
+    await expect(listChildrenUseCase(world.deps, bob, { parentId: folder.id })).rejects.toThrow(
+      NotFoundError,
+    );
+    await expect(trashNodeUseCase(world.deps, bob, folder.id)).rejects.toThrow(NotFoundError);
   });
 
   it("hides trashed folders and restores them", async () => {
-    const deps = testDependencies();
-    const folder = await createFolderUseCase(deps, { ownerId: alice, parentId: null, name: "A" });
-    await trashNodeUseCase(deps, alice, folder.id);
-    expect(await listChildrenUseCase(deps, alice, null)).toEqual([]);
-    await restoreNodeUseCase(deps, alice, folder.id);
-    expect(await listChildrenUseCase(deps, alice, null)).toHaveLength(1);
+    const world = createWorld();
+    const alice = await world.user("alice");
+    const folder = await createFolderUseCase(world.deps, alice, { ...root, name: "A" });
+    await trashNodeUseCase(world.deps, alice, folder.id);
+    expect(await listChildrenUseCase(world.deps, alice, root)).toEqual([]);
+    await restoreNodeUseCase(world.deps, alice, folder.id);
+    expect(await listChildrenUseCase(world.deps, alice, root)).toHaveLength(1);
   });
 
   it("only restores items that are in the trash", async () => {
-    const deps = testDependencies();
-    const folder = await createFolderUseCase(deps, { ownerId: alice, parentId: null, name: "A" });
-    await expect(restoreNodeUseCase(deps, alice, folder.id)).rejects.toThrow(NotInTrashError);
+    const world = createWorld();
+    const alice = await world.user("alice");
+    const folder = await createFolderUseCase(world.deps, alice, { ...root, name: "A" });
+    await expect(restoreNodeUseCase(world.deps, alice, folder.id)).rejects.toThrow(NotInTrashError);
   });
 
   it("refuses to restore into a name conflict", async () => {
-    const deps = testDependencies();
-    const first = await createFolderUseCase(deps, { ownerId: alice, parentId: null, name: "A" });
-    await trashNodeUseCase(deps, alice, first.id);
-    await createFolderUseCase(deps, { ownerId: alice, parentId: null, name: "A" });
-    await expect(restoreNodeUseCase(deps, alice, first.id)).rejects.toThrow(NameConflictError);
+    const world = createWorld();
+    const alice = await world.user("alice");
+    const first = await createFolderUseCase(world.deps, alice, { ...root, name: "A" });
+    await trashNodeUseCase(world.deps, alice, first.id);
+    await createFolderUseCase(world.deps, alice, { ...root, name: "A" });
+    await expect(restoreNodeUseCase(world.deps, alice, first.id)).rejects.toThrow(
+      NameConflictError,
+    );
   });
 });

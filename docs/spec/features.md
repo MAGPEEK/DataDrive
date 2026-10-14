@@ -9,11 +9,11 @@ Priorität: P0 Kern, P1 Ausbau, P2 Erweiterung.
 |---|---|---|---|
 | F1.1 | Benutzer, Gruppen, Rollen, Anmeldung (2FA) | P0 | teilweise (Passwort, Sitzung, TOTP, Admin-Anlage; Gruppen fehlen) |
 | F1.2 | Persönlicher Bereich je Benutzer | P0 | teilweise (Ordner, Postgres) |
-| F1.3 | Team-Ordner mit Rechten (lesen/schreiben/verwalten) | P0 | offen (Rechte folgen) |
+| F1.3 | Team-Ordner mit Rechten (lesen/schreiben/verwalten) | P0 | teilweise (Rollen viewer/editor/manager, Gruppen) |
 | F1.4 | Ansicht "Für mich freigegeben" | P0 | offen |
 | F1.5 | Persönliche und gemeinsame Labels | P1 | offen |
 | F1.6 | Papierkorb, Suche, Zuletzt verwendet | P1 | teilweise (Papierkorb, Postgres) |
-| F1.7 | Quotas pro Benutzer/Ordner | P1 | offen |
+| F1.7 | Quotas pro Benutzer/Ordner | P1 | teilweise (Quota je Laufwerk, 413) |
 
 ## F2 Synchronisierung
 | ID | Funktion | Prio | Status |
@@ -81,7 +81,7 @@ Priorität: P0 Kern, P1 Ausbau, P2 Erweiterung.
 | F9.3 | LDAP/Active-Directory-Anbindung | P1 | offen |
 | F9.4 | Gruppenrichtlinien für Client-Sync/-Backup, Massen-Rollout | P2 | offen |
 | F9.5 | Remote-Löschen synchronisierter Dateien | P2 | offen |
-| F9.6 | Team-Ordner verwalten: aktivieren/deaktivieren, je Ordner Versionen, Download-Sperre, Wasserzeichen, Dateisperre | P0 | offen |
+| F9.6 | Team-Ordner verwalten: aktivieren/deaktivieren, je Ordner Versionen, Download-Sperre, Wasserzeichen, Dateisperre | P0 | teilweise (anlegen, Quota, Einstellungen speichern; Durchsetzung folgt) |
 | F9.7 | Version Explorer für Admins: Zeitpunkt (stundengenau), Ansicht als Benutzer, Wiederherstellen | P1 | offen |
 | F9.8 | Speicherverbrauch berechnen (Versionen, Datenbank, Office-Dateien) | P1 | offen |
 | F9.9 | Papierkorb leeren, auch zeitgesteuert | P1 | offen |
@@ -105,7 +105,7 @@ Priorität: P0 Kern, P1 Ausbau, P2 Erweiterung.
 ## F11 Entwickler
 | ID | Funktion | Prio | Status |
 |---|---|---|---|
-| F11.1 | Öffentliche REST-API (OpenAPI), API-Tokens | P1 | offen |
+| F11.1 | Öffentliche REST-API (OpenAPI), API-Tokens | P1 | teilweise (OpenAPI unter /openapi.json, Tokens folgen) |
 | F11.2 | Webhooks | P2 | offen |
 
 ## Nicht-funktional

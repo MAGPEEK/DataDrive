@@ -3,6 +3,7 @@ import {
   OtpRequiredError,
   UsernameTakenError,
   assertStrongPassword,
+  createPersonalDrive,
   normalizeUsername,
   type Role,
   type User,
@@ -46,6 +47,7 @@ export async function createUserUseCase(
     createdAt: deps.clock.now(),
   };
   await deps.users.save(user);
+  await deps.drives.save(createPersonalDrive(user.id, user.username, user.createdAt));
   return user;
 }
 

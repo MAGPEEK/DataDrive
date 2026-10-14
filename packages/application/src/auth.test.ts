@@ -15,7 +15,7 @@ import {
   loginUseCase,
   logoutUseCase,
 } from "./auth.js";
-import { FixedClock } from "./testing/in-memory.js";
+import { FixedClock, testDependencies } from "./testing/in-memory.js";
 import { FixedCodeTotp, testAuthDependencies } from "./testing/auth-fakes.js";
 
 const password = "correct horse battery";
@@ -77,7 +77,7 @@ describe("login", () => {
 
   it("expires sessions after the ttl", async () => {
     const clock = new FixedClock(new Date("2026-10-14T12:00:00Z"));
-    const { deps } = await newAlice(testAuthDependencies(clock));
+    const { deps } = await newAlice(testAuthDependencies({ ...testDependencies(), clock }));
     const { token } = await loginUseCase(deps, { username: "alice", password });
     clock.advance(SESSION_TTL_MS + 1);
     expect(await authenticateUseCase(deps, token)).toBeNull();

@@ -1,17 +1,19 @@
 import {
   NameConflictError,
   NotFoundError,
+  QuotaExceededError,
   attachVersion,
   createFile,
   findLiveSibling,
+  type Drive,
   type DriveNode,
   type FileVersion,
 } from "@datadrive/domain";
+import { requireNodeAccess, type Actor } from "./access.js";
+import { resolveLocation, type Location } from "./folders.js";
 import type { Dependencies } from "./ports.js";
 
-export interface UploadCommand {
-  readonly ownerId: string;
-  readonly parentId: string | null;
+export interface UploadCommand extends Location {
   readonly name: string;
   readonly content: AsyncIterable<Uint8Array>;
 }
@@ -24,6 +26,7 @@ export interface UploadResult {
 
 export interface Download {
   readonly node: DriveNode;
+  readonly drive: Drive;
   readonly version: FileVersion;
   readonly content: AsyncIterable<Uint8Array>;
 }
@@ -62,54 +65,86 @@ interface StoredContent {
 async function storeBlocks(
   deps: Dependencies,
   content: AsyncIterable<Uint8Array>,
+  maxBytes: number,
 ): Promise<StoredContent> {
   const blockHashes: string[] = [];
   let size = 0;
   for await (const block of toBlocks(content, deps.blockSize)) {
+    size += block.length;
+    if (size > maxBytes) throw new QuotaExceededError();
     const hash = deps.hasher.sha256(block);
     if (!(await deps.blocks.has(hash))) await deps.blocks.put(hash, block);
     blockHashes.push(hash);
-    size += block.length;
   }
   return { blockHashes, size };
 }
 
-async function requireParentFolder(deps: Dependencies, command: UploadCommand): Promise<void> {
-  if (command.parentId === null) return;
-  const parent = await deps.nodes.findById(command.parentId);
-  if (parent === null || parent.ownerId !== command.ownerId || parent.kind !== "folder") {
-    throw new NotFoundError(command.parentId);
-  }
+interface Target {
+  readonly node: DriveNode;
+  readonly created: boolean;
+  readonly driveId: string;
 }
 
-async function resolveTarget(deps: Dependencies, command: UploadCommand): Promise<UploadResult> {
-  const siblings = await deps.nodes.listChildren(command.ownerId, command.parentId);
+async function resolveTarget(
+  deps: Dependencies,
+  actor: Actor,
+  command: UploadCommand,
+): Promise<Target> {
+  const { driveId, parentId } = await resolveLocation(deps, actor, {
+    ...command,
+    permission: "write",
+  });
+  const siblings = await deps.nodes.listChildren(driveId, parentId);
   const existing = findLiveSibling(siblings, command.name);
   if (existing === undefined) {
-    const input = { ...command, id: deps.ids.next(), now: deps.clock.now() };
-    return { node: createFile(input, siblings), created: true };
+    const input = {
+      id: deps.ids.next(),
+      driveId,
+      parentId,
+      name: command.name,
+      now: deps.clock.now(),
+    };
+    return { node: createFile(input, siblings), created: true, driveId };
   }
   if (existing.kind !== "file") throw new NameConflictError(command.name);
-  return { node: existing, created: false };
+  return { node: existing, created: false, driveId };
+}
+
+async function availableBytes(deps: Dependencies, target: Target): Promise<number> {
+  const drive = await deps.drives.findById(target.driveId);
+  if (drive === null || drive.quotaBytes === null) return Number.POSITIVE_INFINITY;
+  const used = await deps.nodes.usedBytes(target.driveId);
+  return Math.max(0, drive.quotaBytes - used + target.node.size);
+}
+
+interface NewVersion {
+  readonly node: DriveNode;
+  readonly stored: StoredContent;
+  readonly authorId: string;
+}
+
+function newVersion(deps: Dependencies, input: NewVersion): FileVersion {
+  const { node, stored, authorId } = input;
+  const listing = new TextEncoder().encode(stored.blockHashes.join("\n"));
+  return {
+    id: deps.ids.next(),
+    nodeId: node.id,
+    size: stored.size,
+    blockHashes: stored.blockHashes,
+    contentHash: deps.hasher.sha256(listing),
+    createdAt: deps.clock.now(),
+    authorId,
+  };
 }
 
 export async function uploadFileUseCase(
   deps: Dependencies,
+  actor: Actor,
   command: UploadCommand,
 ): Promise<UploadResult> {
-  await requireParentFolder(deps, command);
-  const target = await resolveTarget(deps, command);
-  const stored = await storeBlocks(deps, command.content);
-  const listHash = deps.hasher.sha256(new TextEncoder().encode(stored.blockHashes.join("\n")));
-  const version: FileVersion = {
-    id: deps.ids.next(),
-    nodeId: target.node.id,
-    size: stored.size,
-    blockHashes: stored.blockHashes,
-    contentHash: listHash,
-    createdAt: deps.clock.now(),
-    authorId: command.ownerId,
-  };
+  const target = await resolveTarget(deps, actor, command);
+  const stored = await storeBlocks(deps, command.content, await availableBytes(deps, target));
+  const version = newVersion(deps, { node: target.node, stored, authorId: actor.id });
   if (target.created) await deps.nodes.save(target.node);
   await deps.versions.save(version);
   const node = attachVersion(target.node, version);
@@ -123,19 +158,12 @@ async function* readBlocks(deps: Dependencies, version: FileVersion): AsyncGener
 
 export async function downloadFileUseCase(
   deps: Dependencies,
-  ownerId: string,
+  actor: Actor,
   id: string,
 ): Promise<Download> {
-  const node = await deps.nodes.findById(id);
-  if (
-    node === null ||
-    node.ownerId !== ownerId ||
-    node.kind !== "file" ||
-    node.trashedAt !== null
-  ) {
-    throw new NotFoundError(id);
-  }
+  const { node, drive } = await requireNodeAccess(deps, actor, { nodeId: id, permission: "read" });
+  if (node.kind !== "file" || node.trashedAt !== null) throw new NotFoundError(id);
   const version = node.versionId === null ? null : await deps.versions.findById(node.versionId);
   if (version === null) throw new NotFoundError(id);
-  return { node, version, content: readBlocks(deps, version) };
+  return { node, drive, version, content: readBlocks(deps, version) };
 }

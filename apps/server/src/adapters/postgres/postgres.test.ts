@@ -1,8 +1,20 @@
-import type { DriveNode, FileVersion, User } from "@datadrive/domain";
+import {
+  DEFAULT_DRIVE_SETTINGS,
+  createPersonalDrive,
+  type Drive,
+  type DriveNode,
+  type FileVersion,
+  type User,
+} from "@datadrive/domain";
 import { randomUUID } from "node:crypto";
 import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createPool, migrate } from "./database.js";
+import {
+  PgDriveRepository,
+  PgGroupRepository,
+  PgMembershipRepository,
+} from "./team-repositories.js";
 import {
   PgFileVersionRepository,
   PgNodeRepository,
@@ -27,7 +39,7 @@ const user = (id: string, username: string): User => ({
 
 const folder = (id: string, name: string, parentId: string | null = null): DriveNode => ({
   id,
-  ownerId: "u1",
+  driveId: "u1",
   parentId,
   name,
   kind: "folder",
@@ -48,6 +60,7 @@ describe.skipIf(url === undefined)("postgres adapters", () => {
     pool = createPool({ connectionString: url as string, schema });
     await migrate(pool);
     await new PgUserRepository(pool).save(user("u1", "alice"));
+    await new PgDriveRepository(pool).save(createPersonalDrive("u1", "alice", now));
   });
 
   afterAll(async () => {
@@ -111,5 +124,50 @@ describe.skipIf(url === undefined)("postgres adapters", () => {
     expect(await versions.findById("v1")).toEqual(version);
     expect(await nodes.findById("f1")).toMatchObject({ size: 9_000_000_000, versionId: "v1" });
     expect(await versions.findById("nope")).toBeNull();
+  });
+
+  it("sums used bytes per drive", async () => {
+    const nodes = new PgNodeRepository(pool);
+    expect(await nodes.usedBytes("u1")).toBe(9_000_000_000);
+    expect(await nodes.usedBytes("empty-drive")).toBe(0);
+  });
+
+  it("stores drives with quota and settings", async () => {
+    const drives = new PgDriveRepository(pool);
+    const team: Drive = {
+      id: "t1",
+      kind: "team",
+      name: "Marketing",
+      quotaBytes: 5_000_000_000,
+      settings: { ...DEFAULT_DRIVE_SETTINGS, watermark: true, maxVersions: 10 },
+      createdAt: now,
+    };
+    await drives.save(team);
+    expect(await drives.findById("t1")).toEqual(team);
+    await drives.save({ ...team, quotaBytes: null });
+    expect((await drives.findById("t1"))?.quotaBytes).toBeNull();
+    expect((await drives.listTeamDrives()).map((d) => d.id)).toEqual(["t1"]);
+    expect((await drives.findById("u1"))?.kind).toBe("personal");
+  });
+
+  it("resolves roles directly and through groups", async () => {
+    const members = new PgMembershipRepository(pool);
+    const groups = new PgGroupRepository(pool);
+    await new PgUserRepository(pool).save(user("u2", "bob"));
+    await groups.save({ id: "g1", name: "Redaktion", createdAt: now });
+    await groups.addMember("g1", "u2");
+    await members.set("t1", { subjectType: "group", subjectId: "g1", role: "editor" });
+    await members.set("t1", { subjectType: "user", subjectId: "u2", role: "viewer" });
+    expect((await members.rolesFor("u2", "t1")).sort()).toEqual(["editor", "viewer"]);
+    expect(await members.rolesFor("u1", "t1")).toEqual([]);
+    expect(await members.teamRolesForUser("u2")).toHaveLength(2);
+    expect(await members.list("t1")).toHaveLength(2);
+
+    await members.set("t1", { subjectType: "user", subjectId: "u2", role: "manager" });
+    await members.remove("t1", "group", "g1");
+    expect(await members.rolesFor("u2", "t1")).toEqual(["manager"]);
+    await groups.removeMember("g1", "u2");
+    expect(await groups.listMembers("g1")).toEqual([]);
+    expect((await groups.findByName("Redaktion"))?.id).toBe("g1");
   });
 });

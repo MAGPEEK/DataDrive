@@ -115,7 +115,7 @@ export class PgSessionRepository implements SessionRepository {
 
 interface NodeRow {
   id: string;
-  owner_id: string;
+  drive_id: string;
   parent_id: string | null;
   name: string;
   kind: NodeKind;
@@ -128,7 +128,7 @@ interface NodeRow {
 
 const toNode = (row: NodeRow): DriveNode => ({
   id: row.id,
-  ownerId: row.owner_id,
+  driveId: row.drive_id,
   parentId: row.parent_id,
   name: row.name,
   kind: row.kind,
@@ -147,17 +147,25 @@ export class PgNodeRepository implements NodeRepository {
     return result.rows[0] === undefined ? null : toNode(result.rows[0]);
   }
 
-  async listChildren(ownerId: string, parentId: string | null): Promise<DriveNode[]> {
+  async listChildren(driveId: string, parentId: string | null): Promise<DriveNode[]> {
     const result = await this.pool.query<NodeRow>(
-      "SELECT * FROM nodes WHERE owner_id = $1 AND parent_id IS NOT DISTINCT FROM $2 ORDER BY lower(name)",
-      [ownerId, parentId],
+      "SELECT * FROM nodes WHERE drive_id = $1 AND parent_id IS NOT DISTINCT FROM $2 ORDER BY lower(name)",
+      [driveId, parentId],
     );
     return result.rows.map(toNode);
   }
 
+  async usedBytes(driveId: string): Promise<number> {
+    const result = await this.pool.query<{ total: string }>(
+      "SELECT COALESCE(SUM(size), 0) AS total FROM nodes WHERE drive_id = $1",
+      [driveId],
+    );
+    return Number(result.rows[0]?.total ?? 0);
+  }
+
   async save(node: DriveNode): Promise<void> {
     await this.pool.query(
-      `INSERT INTO nodes (id, owner_id, parent_id, name, kind, size, created_at, modified_at, trashed_at, version_id)
+      `INSERT INTO nodes (id, drive_id, parent_id, name, kind, size, created_at, modified_at, trashed_at, version_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        ON CONFLICT (id) DO UPDATE SET
          parent_id = EXCLUDED.parent_id, name = EXCLUDED.name, size = EXCLUDED.size,
@@ -165,7 +173,7 @@ export class PgNodeRepository implements NodeRepository {
          version_id = EXCLUDED.version_id`,
       [
         node.id,
-        node.ownerId,
+        node.driveId,
         node.parentId,
         node.name,
         node.kind,

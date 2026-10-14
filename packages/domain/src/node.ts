@@ -5,7 +5,7 @@ export type NodeKind = "file" | "folder";
 
 export interface DriveNode {
   readonly id: string;
-  readonly ownerId: string;
+  readonly driveId: string;
   readonly parentId: string | null;
   readonly name: string;
   readonly kind: NodeKind;
@@ -32,7 +32,7 @@ export interface FileVersion {
 
 export interface NewNode {
   readonly id: string;
-  readonly ownerId: string;
+  readonly driveId: string;
   readonly parentId: string | null;
   readonly name: string;
   readonly now: Date;
@@ -52,7 +52,7 @@ function createNode(kind: NodeKind, input: NewNode, siblings: readonly DriveNode
   if (findLiveSibling(siblings, input.name) !== undefined) throw new NameConflictError(input.name);
   return {
     id: input.id,
-    ownerId: input.ownerId,
+    driveId: input.driveId,
     parentId: input.parentId,
     name: input.name,
     kind,

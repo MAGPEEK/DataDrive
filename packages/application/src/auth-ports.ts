@@ -1,5 +1,5 @@
 import type { User } from "@datadrive/domain";
-import type { Clock, IdGenerator } from "./ports.js";
+import type { Clock, DriveRepository, IdGenerator } from "./ports.js";
 
 export interface UserRepository {
   findById(id: string): Promise<User | null>;
@@ -40,6 +40,7 @@ export interface TotpService {
 
 export interface AuthDependencies {
   readonly users: UserRepository;
+  readonly drives: DriveRepository;
   readonly sessions: SessionRepository;
   readonly hasher: PasswordHasher;
   readonly tokens: TokenCodec;

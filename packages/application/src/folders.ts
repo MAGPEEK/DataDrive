@@ -6,47 +6,77 @@ import {
   restoreFromTrash,
   type DriveNode,
 } from "@datadrive/domain";
+import { requireDriveAccess, requireNodeAccess, type Actor } from "./access.js";
 import type { Dependencies } from "./ports.js";
 
-export interface CreateFolderCommand {
-  readonly ownerId: string;
+export interface Location {
+  /** Defaults to the actor's personal drive. Ignored when parentId is set (the parent decides). */
+  readonly driveId?: string | undefined;
   readonly parentId: string | null;
+}
+
+export interface CreateFolderCommand extends Location {
   readonly name: string;
 }
 
-async function requireOwned(deps: Dependencies, ownerId: string, id: string): Promise<DriveNode> {
-  const node = await deps.nodes.findById(id);
-  if (node === null || node.ownerId !== ownerId) throw new NotFoundError(id);
-  return node;
+/** Resolves the drive and checks the permission for a location (a drive root or a folder). */
+export async function resolveLocation(
+  deps: Dependencies,
+  actor: Actor,
+  request: Location & { readonly permission: "read" | "write" },
+): Promise<{ driveId: string; parentId: string | null }> {
+  const { permission, parentId } = request;
+  if (parentId === null) {
+    const driveId = request.driveId ?? actor.id;
+    await requireDriveAccess(deps, actor, { driveId, permission });
+    return { driveId, parentId: null };
+  }
+  const { node } = await requireNodeAccess(deps, actor, { nodeId: parentId, permission });
+  if (node.kind !== "folder") throw new NotFoundError(node.id);
+  return { driveId: node.driveId, parentId: node.id };
 }
 
 export async function createFolderUseCase(
   deps: Dependencies,
+  actor: Actor,
   command: CreateFolderCommand,
 ): Promise<DriveNode> {
-  if (command.parentId !== null) await requireOwned(deps, command.ownerId, command.parentId);
-  const siblings = await deps.nodes.listChildren(command.ownerId, command.parentId);
-  const folder = createFolder({ ...command, id: deps.ids.next(), now: deps.clock.now() }, siblings);
+  const { driveId, parentId } = await resolveLocation(deps, actor, {
+    ...command,
+    permission: "write",
+  });
+  const siblings = await deps.nodes.listChildren(driveId, parentId);
+  const input = {
+    id: deps.ids.next(),
+    driveId,
+    parentId,
+    name: command.name,
+    now: deps.clock.now(),
+  };
+  const folder = createFolder(input, siblings);
   await deps.nodes.save(folder);
   return folder;
 }
 
 export async function listChildrenUseCase(
   deps: Dependencies,
-  ownerId: string,
-  parentId: string | null,
+  actor: Actor,
+  location: Location,
 ): Promise<DriveNode[]> {
-  if (parentId !== null) await requireOwned(deps, ownerId, parentId);
-  const children = await deps.nodes.listChildren(ownerId, parentId);
+  const { driveId, parentId } = await resolveLocation(deps, actor, {
+    ...location,
+    permission: "read",
+  });
+  const children = await deps.nodes.listChildren(driveId, parentId);
   return children.filter((node) => node.trashedAt === null);
 }
 
 export async function trashNodeUseCase(
   deps: Dependencies,
-  ownerId: string,
+  actor: Actor,
   id: string,
 ): Promise<DriveNode> {
-  const node = await requireOwned(deps, ownerId, id);
+  const { node } = await requireNodeAccess(deps, actor, { nodeId: id, permission: "write" });
   const trashed = moveToTrash(node, deps.clock.now());
   await deps.nodes.save(trashed);
   return trashed;
@@ -54,12 +84,12 @@ export async function trashNodeUseCase(
 
 export async function restoreNodeUseCase(
   deps: Dependencies,
-  ownerId: string,
+  actor: Actor,
   id: string,
 ): Promise<DriveNode> {
-  const node = await requireOwned(deps, ownerId, id);
+  const { node } = await requireNodeAccess(deps, actor, { nodeId: id, permission: "write" });
   if (node.trashedAt === null) throw new NotInTrashError(id);
-  const siblings = await deps.nodes.listChildren(ownerId, node.parentId);
+  const siblings = await deps.nodes.listChildren(node.driveId, node.parentId);
   const restored = restoreFromTrash(node, siblings);
   await deps.nodes.save(restored);
   return restored;

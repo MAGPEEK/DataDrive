@@ -1,12 +1,23 @@
-import type { DriveNode, FileVersion } from "@datadrive/domain";
+import type {
+  Drive,
+  DriveNode,
+  DriveRole,
+  FileVersion,
+  Group,
+  SubjectType,
+} from "@datadrive/domain";
 import { createHash } from "node:crypto";
 import type {
   BlockStore,
   Clock,
   ContentHasher,
   Dependencies,
+  DriveRepository,
   FileVersionRepository,
+  GroupRepository,
   IdGenerator,
+  Member,
+  MembershipRepository,
   NodeRepository,
 } from "../ports.js";
 
@@ -17,12 +28,18 @@ export class InMemoryNodeRepository implements NodeRepository {
     return this.store.get(id) ?? null;
   }
 
-  async listChildren(ownerId: string, parentId: string | null): Promise<DriveNode[]> {
-    return [...this.store.values()].filter((n) => n.ownerId === ownerId && n.parentId === parentId);
+  async listChildren(driveId: string, parentId: string | null): Promise<DriveNode[]> {
+    return [...this.store.values()].filter((n) => n.driveId === driveId && n.parentId === parentId);
   }
 
   async save(node: DriveNode): Promise<void> {
     this.store.set(node.id, node);
+  }
+
+  async usedBytes(driveId: string): Promise<number> {
+    return [...this.store.values()]
+      .filter((n) => n.driveId === driveId)
+      .reduce((sum, n) => sum + n.size, 0);
   }
 }
 
@@ -35,6 +52,102 @@ export class InMemoryFileVersionRepository implements FileVersionRepository {
 
   async save(version: FileVersion): Promise<void> {
     this.store.set(version.id, version);
+  }
+}
+
+export class InMemoryDriveRepository implements DriveRepository {
+  private readonly store = new Map<string, Drive>();
+
+  async findById(id: string): Promise<Drive | null> {
+    return this.store.get(id) ?? null;
+  }
+
+  async save(drive: Drive): Promise<void> {
+    this.store.set(drive.id, drive);
+  }
+
+  async listTeamDrives(): Promise<Drive[]> {
+    return [...this.store.values()].filter((d) => d.kind === "team");
+  }
+}
+
+export class InMemoryGroupRepository implements GroupRepository {
+  private readonly groups = new Map<string, Group>();
+  private readonly members = new Map<string, Set<string>>();
+
+  async findById(id: string): Promise<Group | null> {
+    return this.groups.get(id) ?? null;
+  }
+
+  async findByName(name: string): Promise<Group | null> {
+    return [...this.groups.values()].find((g) => g.name === name) ?? null;
+  }
+
+  async save(group: Group): Promise<void> {
+    this.groups.set(group.id, group);
+  }
+
+  async listAll(): Promise<Group[]> {
+    return [...this.groups.values()];
+  }
+
+  async addMember(groupId: string, userId: string): Promise<void> {
+    this.members.set(groupId, (this.members.get(groupId) ?? new Set()).add(userId));
+  }
+
+  async removeMember(groupId: string, userId: string): Promise<void> {
+    this.members.get(groupId)?.delete(userId);
+  }
+
+  async listMembers(groupId: string): Promise<string[]> {
+    return [...(this.members.get(groupId) ?? [])];
+  }
+}
+
+export class InMemoryMembershipRepository implements MembershipRepository {
+  private readonly entries = new Map<string, Member & { driveId: string }>();
+
+  constructor(private readonly groups: GroupRepository) {}
+
+  private key(driveId: string, type: SubjectType, id: string): string {
+    return `${driveId}|${type}|${id}`;
+  }
+
+  async set(driveId: string, member: Member): Promise<void> {
+    this.entries.set(this.key(driveId, member.subjectType, member.subjectId), {
+      ...member,
+      driveId,
+    });
+  }
+
+  async remove(driveId: string, type: SubjectType, id: string): Promise<void> {
+    this.entries.delete(this.key(driveId, type, id));
+  }
+
+  async list(driveId: string): Promise<Member[]> {
+    return [...this.entries.values()].filter((e) => e.driveId === driveId);
+  }
+
+  async teamRolesForUser(userId: string): Promise<{ driveId: string; role: DriveRole }[]> {
+    const result: { driveId: string; role: DriveRole }[] = [];
+    for (const entry of this.entries.values()) {
+      if (await this.applies(entry, userId))
+        result.push({ driveId: entry.driveId, role: entry.role });
+    }
+    return result;
+  }
+
+  async rolesFor(userId: string, driveId: string): Promise<DriveRole[]> {
+    const roles: DriveRole[] = [];
+    for (const entry of this.entries.values()) {
+      if (entry.driveId === driveId && (await this.applies(entry, userId))) roles.push(entry.role);
+    }
+    return roles;
+  }
+
+  private async applies(entry: Member, userId: string): Promise<boolean> {
+    if (entry.subjectType === "user") return entry.subjectId === userId;
+    return (await this.groups.listMembers(entry.subjectId)).includes(userId);
   }
 }
 
@@ -84,9 +197,13 @@ export class SequentialIds implements IdGenerator {
 }
 
 export function testDependencies(blockSize = 4): Dependencies {
+  const groups = new InMemoryGroupRepository();
   return {
     nodes: new InMemoryNodeRepository(),
     versions: new InMemoryFileVersionRepository(),
+    drives: new InMemoryDriveRepository(),
+    memberships: new InMemoryMembershipRepository(groups),
+    groups,
     blocks: new InMemoryBlockStore(),
     hasher: new NodeCryptoHasher(),
     clock: new FixedClock(new Date("2026-10-14T12:00:00Z")),
