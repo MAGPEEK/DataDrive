@@ -27,11 +27,24 @@ Der Aufbau orientiert sich funktional an Diensten wie Synology Drive.
   eines anderen Produkts wird übernommen. DataDrive steht in keiner Verbindung zu Synology.
 
 ## Stand
-Phase 1 – Analyse und Spezifikation. Es gibt noch keine lauffähige Software.
+M0 – Fundament: Container-Gerüst, CI und ein Health-Endpunkt laufen. Funktionen folgen ab M1 (siehe [Roadmap](docs/ROADMAP.md)).
 
 ## Dokumentation
 - [Funktionsspezifikation](docs/spec/features.md)
 - [Entscheidung Tech-Stack (ADR 0001)](docs/adr/0001-tech-stack.md)
+- [ADR 0002 Container](docs/adr/0002-containers.md), [ADR 0003 Sync-Protokoll](docs/adr/0003-sync-protocol.md)
 - [Clean-Code-Regeln](docs/CLEAN-CODE.md)
 - [Roadmap](docs/ROADMAP.md)
 - Logo: [brand/logo.svg](brand/logo.svg)
+
+## Entwicklung (alles im Container)
+```bash
+cp .env.example .env            # Werte anpassen
+docker compose -f compose.dev.yaml run --rm dev pnpm install
+docker compose -f compose.dev.yaml run --rm dev pnpm lint
+docker compose -f compose.dev.yaml run --rm dev pnpm test
+docker compose up -d --build   # Server + Datenbank, http://localhost:3000/health
+```
+
+## Lizenz
+Apache-2.0, siehe [LICENSE](LICENSE).

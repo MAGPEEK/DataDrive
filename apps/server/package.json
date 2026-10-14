@@ -1,0 +1,17 @@
+{
+  "name": "@datadrive/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@datadrive/domain": "workspace:*",
+    "fastify": "^5.2.0"
+  }
+}

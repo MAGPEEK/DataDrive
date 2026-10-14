@@ -1,0 +1,18 @@
+# Development tooling container. Usage:
+#   docker compose -f compose.dev.yaml run --rm dev pnpm install
+#   docker compose -f compose.dev.yaml run --rm dev pnpm lint test typecheck
+services:
+  dev:
+    build:
+      context: .
+      target: dev
+    working_dir: /repo
+    volumes:
+      - .:/repo
+      - node_modules:/repo/node_modules
+      - pnpm_store:/root/.local/share/pnpm/store
+    command: sh
+
+volumes:
+  node_modules:
+  pnpm_store:

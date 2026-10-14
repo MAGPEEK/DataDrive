@@ -1,0 +1,7 @@
+{
+  "name": "DataDrive",
+  "dockerComposeFile": ["../compose.dev.yaml"],
+  "service": "dev",
+  "workspaceFolder": "/repo",
+  "customizations": { "vscode": { "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"] } }
+}

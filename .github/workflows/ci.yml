@@ -1,0 +1,23 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build dev image
+        run: docker compose -f compose.dev.yaml build dev
+      - name: Install
+        run: docker compose -f compose.dev.yaml run --rm dev pnpm install --frozen-lockfile
+      - name: Lint
+        run: docker compose -f compose.dev.yaml run --rm dev pnpm lint
+      - name: Typecheck
+        run: docker compose -f compose.dev.yaml run --rm dev pnpm build && docker compose -f compose.dev.yaml run --rm dev pnpm typecheck
+      - name: Test
+        run: docker compose -f compose.dev.yaml run --rm dev pnpm test
+      - name: Build server image
+        run: docker build --target server -t datadrive-server .
