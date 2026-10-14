@@ -31,7 +31,7 @@ const downloadSchema = {
 
 const UPLOAD_LIMIT_BYTES = 50 * 1024 ** 3;
 
-function contentDisposition(name: string): string {
+export function contentDisposition(name: string): string {
   const ascii = name.replace(/[^\x20-\x7e]|["\\]/gu, "_");
   return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`;
 }

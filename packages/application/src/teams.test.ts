@@ -177,6 +177,8 @@ describe("quotas", () => {
       watermark: false,
       fileLocking: false,
       maxVersions: 10,
+      versionPolicy: "fifo",
+      retentionDays: null,
     });
   });
 });

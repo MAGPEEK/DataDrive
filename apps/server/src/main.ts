@@ -24,8 +24,11 @@ import {
 import { RandomTokenCodec } from "./adapters/token-codec.js";
 import { Rfc6238Totp } from "./adapters/totp.js";
 import { buildApp } from "./app.js";
+import { startMaintenance } from "./maintenance-job.js";
 
 const BLOCK_SIZE_BYTES = 4 * 1024 * 1024;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -48,33 +51,34 @@ interface Runtime {
 }
 
 function createRuntime(pool: pg.Pool): Runtime {
-  const clock = { now: () => new Date() };
-  const ids = { next: () => randomUUID() };
-  const drives = new PgDriveRepository(pool);
   const deps: Dependencies = {
+    users: new PgUserRepository(pool),
     nodes: new PgNodeRepository(pool),
     versions: new PgFileVersionRepository(pool),
     stars: new PgStarRepository(pool),
-    drives,
+    drives: new PgDriveRepository(pool),
     memberships: new PgMembershipRepository(pool),
     groups: new PgGroupRepository(pool),
     blocks: new FsBlockStore(process.env.BLOCK_DIR ?? "/data/blocks"),
     hasher: new Sha256Hasher(),
-    clock,
-    ids,
+    clock: { now: () => new Date() },
+    ids: { next: () => randomUUID() },
     blockSize: BLOCK_SIZE_BYTES,
   };
-  const auth: AuthDependencies = {
-    users: new PgUserRepository(pool),
-    drives,
+  return { deps, auth: createAuth(pool, deps) };
+}
+
+function createAuth(pool: pg.Pool, deps: Dependencies): AuthDependencies {
+  return {
+    users: deps.users,
+    drives: deps.drives,
     sessions: new PgSessionRepository(pool),
     hasher: new Argon2Hasher(),
     tokens: new RandomTokenCodec(),
     totp: new Rfc6238Totp(),
-    clock,
-    ids,
+    clock: deps.clock,
+    ids: deps.ids,
   };
-  return { deps, auth };
 }
 
 async function main(): Promise<void> {
@@ -84,6 +88,11 @@ async function main(): Promise<void> {
   await bootstrapAdmin(auth);
 
   const app = await buildApp({ deps, auth, secureCookies: process.env.COOKIE_SECURE === "true" });
+  startMaintenance(deps, {
+    intervalMs: HOUR_MS,
+    graceMs: DAY_MS,
+    log: (message) => console.log(message),
+  });
   await app.listen({ port: Number(process.env.SERVER_PORT ?? 3000), host: "0.0.0.0" });
 }
 

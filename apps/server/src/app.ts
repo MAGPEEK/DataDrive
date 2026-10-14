@@ -9,6 +9,7 @@ import { errorHandler } from "./http-errors.js";
 import { registerDiscoveryRoutes } from "./discovery-routes.js";
 import { registerNodeRoutes } from "./node-routes.js";
 import { registerTeamRoutes } from "./team-routes.js";
+import { registerVersionRoutes } from "./version-routes.js";
 
 export interface AppOptions {
   readonly deps: Dependencies;
@@ -48,5 +49,6 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   registerDiscoveryRoutes(app, options.deps);
   registerFileRoutes(app, options.deps);
   registerTeamRoutes(app, options.deps);
+  registerVersionRoutes(app, options.deps);
   return app;
 }

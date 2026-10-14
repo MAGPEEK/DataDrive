@@ -1,4 +1,5 @@
 import type {
+  User,
   Drive,
   DriveNode,
   DriveRole,
@@ -7,6 +8,7 @@ import type {
   SubjectType,
 } from "@datadrive/domain";
 import { createHash } from "node:crypto";
+import type { UserRepository } from "../auth-ports.js";
 import type {
   BlockStore,
   Clock,
@@ -20,7 +22,28 @@ import type {
   MembershipRepository,
   NodeRepository,
   StarRepository,
+  StoredBlock,
 } from "../ports.js";
+
+export class InMemoryUserRepository implements UserRepository {
+  private readonly store = new Map<string, User>();
+
+  async findById(id: string): Promise<User | null> {
+    return this.store.get(id) ?? null;
+  }
+
+  async findByUsername(username: string): Promise<User | null> {
+    return [...this.store.values()].find((u) => u.username === username) ?? null;
+  }
+
+  async count(): Promise<number> {
+    return this.store.size;
+  }
+
+  async save(user: User): Promise<void> {
+    this.store.set(user.id, user);
+  }
+}
 
 export class InMemoryNodeRepository implements NodeRepository {
   private readonly store = new Map<string, DriveNode>();
@@ -97,6 +120,21 @@ export class InMemoryFileVersionRepository implements FileVersionRepository {
 
   async save(version: FileVersion): Promise<void> {
     this.store.set(version.id, version);
+  }
+
+  async listForNode(nodeId: string): Promise<FileVersion[]> {
+    return [...this.store.values()]
+      .filter((v) => v.nodeId === nodeId)
+      .reverse()
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async delete(ids: readonly string[]): Promise<void> {
+    for (const id of ids) this.store.delete(id);
+  }
+
+  async referencedBlockHashes(): Promise<Set<string>> {
+    return new Set([...this.store.values()].flatMap((v) => v.blockHashes));
   }
 }
 
@@ -198,6 +236,9 @@ export class InMemoryMembershipRepository implements MembershipRepository {
 
 export class InMemoryBlockStore implements BlockStore {
   readonly blocks = new Map<string, Uint8Array>();
+  readonly stored = new Map<string, Date>();
+
+  constructor(private readonly clock: Clock = { now: () => new Date() }) {}
 
   async has(hash: string): Promise<boolean> {
     return this.blocks.has(hash);
@@ -205,12 +246,22 @@ export class InMemoryBlockStore implements BlockStore {
 
   async put(hash: string, data: Uint8Array): Promise<void> {
     this.blocks.set(hash, data);
+    this.stored.set(hash, this.clock.now());
   }
 
   async get(hash: string): Promise<Uint8Array> {
     const data = this.blocks.get(hash);
     if (data === undefined) throw new Error(`Missing block ${hash}`);
     return data;
+  }
+
+  async *list(): AsyncGenerator<StoredBlock> {
+    for (const [hash, modifiedAt] of [...this.stored]) yield { hash, modifiedAt };
+  }
+
+  async delete(hash: string): Promise<void> {
+    this.blocks.delete(hash);
+    this.stored.delete(hash);
   }
 }
 
@@ -243,16 +294,18 @@ export class SequentialIds implements IdGenerator {
 
 export function testDependencies(blockSize = 4): Dependencies {
   const groups = new InMemoryGroupRepository();
+  const clock = new FixedClock(new Date("2026-10-14T12:00:00Z"));
   return {
+    users: new InMemoryUserRepository(),
     nodes: new InMemoryNodeRepository(),
     versions: new InMemoryFileVersionRepository(),
     stars: new InMemoryStarRepository(),
     drives: new InMemoryDriveRepository(),
     memberships: new InMemoryMembershipRepository(groups),
     groups,
-    blocks: new InMemoryBlockStore(),
+    blocks: new InMemoryBlockStore(clock),
     hasher: new NodeCryptoHasher(),
-    clock: new FixedClock(new Date("2026-10-14T12:00:00Z")),
+    clock,
     ids: new SequentialIds(),
     blockSize,
   };

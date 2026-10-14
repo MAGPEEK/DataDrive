@@ -232,6 +232,16 @@ interface VersionRow {
   author_id: string;
 }
 
+const toVersion = (row: VersionRow): FileVersion => ({
+  id: row.id,
+  nodeId: row.node_id,
+  size: Number(row.size),
+  blockHashes: row.block_hashes,
+  contentHash: row.content_hash,
+  createdAt: row.created_at,
+  authorId: row.author_id,
+});
+
 export class PgFileVersionRepository implements FileVersionRepository {
   constructor(private readonly pool: pg.Pool) {}
 
@@ -240,16 +250,27 @@ export class PgFileVersionRepository implements FileVersionRepository {
       id,
     ]);
     const row = result.rows[0];
-    if (row === undefined) return null;
-    return {
-      id: row.id,
-      nodeId: row.node_id,
-      size: Number(row.size),
-      blockHashes: row.block_hashes,
-      contentHash: row.content_hash,
-      createdAt: row.created_at,
-      authorId: row.author_id,
-    };
+    return row === undefined ? null : toVersion(row);
+  }
+
+  async listForNode(nodeId: string): Promise<FileVersion[]> {
+    const result = await this.pool.query<VersionRow>(
+      "SELECT * FROM file_versions WHERE node_id = $1 ORDER BY created_at DESC, id DESC",
+      [nodeId],
+    );
+    return result.rows.map(toVersion);
+  }
+
+  async delete(ids: readonly string[]): Promise<void> {
+    if (ids.length === 0) return;
+    await this.pool.query("DELETE FROM file_versions WHERE id = ANY($1)", [[...ids]]);
+  }
+
+  async referencedBlockHashes(): Promise<Set<string>> {
+    const result = await this.pool.query<{ hash: string }>(
+      "SELECT DISTINCT unnest(block_hashes) AS hash FROM file_versions",
+    );
+    return new Set(result.rows.map((row) => row.hash));
   }
 
   async save(version: FileVersion): Promise<void> {

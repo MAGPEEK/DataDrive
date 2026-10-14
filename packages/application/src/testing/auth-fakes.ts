@@ -1,4 +1,3 @@
-import type { User } from "@datadrive/domain";
 import type {
   AuthDependencies,
   PasswordHasher,
@@ -6,30 +5,9 @@ import type {
   SessionRepository,
   TokenCodec,
   TotpService,
-  UserRepository,
 } from "../auth-ports.js";
 import type { Dependencies } from "../ports.js";
 import { testDependencies } from "./in-memory.js";
-
-export class InMemoryUserRepository implements UserRepository {
-  private readonly store = new Map<string, User>();
-
-  async findById(id: string): Promise<User | null> {
-    return this.store.get(id) ?? null;
-  }
-
-  async findByUsername(username: string): Promise<User | null> {
-    return [...this.store.values()].find((u) => u.username === username) ?? null;
-  }
-
-  async count(): Promise<number> {
-    return this.store.size;
-  }
-
-  async save(user: User): Promise<void> {
-    this.store.set(user.id, user);
-  }
-}
 
 export class InMemorySessionRepository implements SessionRepository {
   private readonly store = new Map<string, Session>();
@@ -94,7 +72,7 @@ export class FixedCodeTotp implements TotpService {
 /** Auth dependencies sharing drives, clock and ids with the given application dependencies. */
 export function testAuthDependencies(shared: Dependencies = testDependencies()): AuthDependencies {
   return {
-    users: new InMemoryUserRepository(),
+    users: shared.users,
     drives: shared.drives,
     sessions: new InMemorySessionRepository(),
     hasher: new PlainHasher(),

@@ -14,6 +14,8 @@ import {
 import { requireNodeAccess, roleIn, type Actor } from "./access.js";
 import { resolveLocation, type Location } from "./folders.js";
 import type { Dependencies } from "./ports.js";
+import { availableBytes } from "./quota.js";
+import { findVersion, pruneVersions, type VersionTarget } from "./versions.js";
 
 export interface UploadCommand extends Location {
   readonly name: string;
@@ -112,13 +114,6 @@ async function resolveTarget(
   return { node: existing, created: false, driveId };
 }
 
-async function availableBytes(deps: Dependencies, target: Target): Promise<number> {
-  const drive = await deps.drives.findById(target.driveId);
-  if (drive === null || drive.quotaBytes === null) return Number.POSITIVE_INFINITY;
-  const used = await deps.nodes.usedBytes(target.driveId);
-  return Math.max(0, drive.quotaBytes - used + target.node.size);
-}
-
 interface NewVersion {
   readonly node: DriveNode;
   readonly stored: StoredContent;
@@ -145,12 +140,14 @@ export async function uploadFileUseCase(
   command: UploadCommand,
 ): Promise<UploadResult> {
   const target = await resolveTarget(deps, actor, command);
-  const stored = await storeBlocks(deps, command.content, await availableBytes(deps, target));
+  const stored = await storeBlocks(deps, command.content, await availableBytes(deps, target.node));
   const version = newVersion(deps, { node: target.node, stored, authorId: actor.id });
   if (target.created) await deps.nodes.save(target.node);
   await deps.versions.save(version);
   const node = attachVersion(target.node, version);
   await deps.nodes.save(node);
+  const drive = await deps.drives.findById(node.driveId);
+  if (drive !== null) await pruneVersions(deps, node, drive);
   return { node, created: target.created };
 }
 
@@ -158,16 +155,37 @@ async function* readBlocks(deps: Dependencies, version: FileVersion): AsyncGener
   for (const hash of version.blockHashes) yield await deps.blocks.get(hash);
 }
 
-export async function downloadFileUseCase(
+interface OpenRequest {
+  readonly id: string;
+  /** A specific version; the current one if omitted. */
+  readonly versionId?: string | undefined;
+}
+
+async function openContent(
   deps: Dependencies,
   actor: Actor,
-  id: string,
+  request: OpenRequest,
 ): Promise<Download> {
+  const { id } = request;
   const { node, drive } = await requireNodeAccess(deps, actor, { nodeId: id, permission: "read" });
   if (node.kind !== "file" || node.trashedAt !== null) throw new NotFoundError(id);
   const role = await roleIn(deps, actor, node.driveId);
   if (!capabilitiesFor(role, drive.settings).canDownload) throw new ForbiddenError();
-  const version = node.versionId === null ? null : await deps.versions.findById(node.versionId);
+  const wanted = request.versionId ?? node.versionId;
+  const version = wanted === null ? null : await findVersion(deps, node, wanted).catch(() => null);
   if (version === null) throw new NotFoundError(id);
   return { node, drive, version, content: readBlocks(deps, version) };
 }
+
+export const downloadFileUseCase = (
+  deps: Dependencies,
+  actor: Actor,
+  id: string,
+): Promise<Download> => openContent(deps, actor, { id });
+
+export const downloadVersionUseCase = (
+  deps: Dependencies,
+  actor: Actor,
+  target: VersionTarget,
+): Promise<Download> =>
+  openContent(deps, actor, { id: target.nodeId, versionId: target.versionId });

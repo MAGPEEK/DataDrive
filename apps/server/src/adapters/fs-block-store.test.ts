@@ -40,6 +40,24 @@ describe("FsBlockStore", () => {
     expect(await readdir(join(dir, hash.slice(0, 2)))).toHaveLength(1);
   });
 
+  it("lists stored blocks with their modification time and deletes them", async () => {
+    await store.put(hash, data);
+    const blocks = [];
+    for await (const block of store.list()) blocks.push(block);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]).toMatchObject({ hash });
+    expect(Date.now() - (blocks[0]?.modifiedAt.getTime() ?? 0)).toBeLessThan(60_000);
+    await store.delete(hash);
+    await store.delete(hash);
+    expect(await store.has(hash)).toBe(false);
+  });
+
+  it("lists nothing for an empty store", async () => {
+    const blocks = [];
+    for await (const block of new FsBlockStore(join(dir, "missing")).list()) blocks.push(block);
+    expect(blocks).toEqual([]);
+  });
+
   it("rejects hashes that could escape the root", async () => {
     await expect(store.get("../../etc/passwd")).rejects.toThrow("Invalid block hash");
     await expect(store.put("zz", data)).rejects.toThrow("Invalid block hash");

@@ -6,6 +6,7 @@ import type {
   Group,
   SubjectType,
 } from "@datadrive/domain";
+import type { UserRepository } from "./auth-ports.js";
 
 export interface NodeRepository {
   findById(id: string): Promise<DriveNode | null>;
@@ -31,6 +32,11 @@ export interface StarRepository {
 export interface FileVersionRepository {
   findById(id: string): Promise<FileVersion | null>;
   save(version: FileVersion): Promise<void>;
+  /** All versions of a file, newest first. */
+  listForNode(nodeId: string): Promise<FileVersion[]>;
+  delete(ids: readonly string[]): Promise<void>;
+  /** Hashes of all blocks that at least one version refers to. */
+  referencedBlockHashes(): Promise<Set<string>>;
 }
 
 export interface DriveRepository {
@@ -66,10 +72,17 @@ export interface GroupRepository {
 }
 
 /** Content-addressed storage for file blocks. */
+export interface StoredBlock {
+  readonly hash: string;
+  readonly modifiedAt: Date;
+}
+
 export interface BlockStore {
   has(hash: string): Promise<boolean>;
   put(hash: string, data: Uint8Array): Promise<void>;
   get(hash: string): Promise<Uint8Array>;
+  list(): AsyncIterable<StoredBlock>;
+  delete(hash: string): Promise<void>;
 }
 
 export interface ContentHasher {
@@ -85,6 +98,7 @@ export interface IdGenerator {
 }
 
 export interface Dependencies {
+  readonly users: UserRepository;
   readonly nodes: NodeRepository;
   readonly versions: FileVersionRepository;
   readonly stars: StarRepository;

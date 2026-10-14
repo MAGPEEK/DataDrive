@@ -1,4 +1,5 @@
 import { DomainError } from "./errors.js";
+import type { VersionPolicyMode } from "./retention.js";
 
 /**
  * A drive is a container for nodes: every user has one personal drive (same id as the user),
@@ -15,6 +16,9 @@ export interface DriveSettings {
   readonly fileLocking: boolean;
   /** Maximum number of versions kept per file. */
   readonly maxVersions: number;
+  readonly versionPolicy: VersionPolicyMode;
+  /** Versions older than this many days are removed; null keeps them. */
+  readonly retentionDays: number | null;
 }
 
 export interface Drive {
@@ -38,6 +42,8 @@ export const DEFAULT_DRIVE_SETTINGS: DriveSettings = {
   watermark: false,
   fileLocking: false,
   maxVersions: 32,
+  versionPolicy: "fifo",
+  retentionDays: null,
 };
 
 const ROLE_RANK: Record<DriveRole, number> = { viewer: 1, editor: 2, manager: 3 };

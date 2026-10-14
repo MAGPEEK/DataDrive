@@ -34,9 +34,9 @@ Priorität: P0 Kern, P1 Ausbau, P2 Erweiterung.
 ## F4 Versionierung
 | ID | Funktion | Prio | Status |
 |---|---|---|---|
-| F4.1 | Bis zu 32 Versionen je Datei, Aufbewahrung 7/30/60/120 Tage | P0 | offen |
-| F4.2 | FIFO und "Intelliversioning" (signifikante Versionen) | P1 | offen |
-| F4.3 | Deduplizierung über Versionen | P1 | offen |
+| F4.1 | Bis zu 32 Versionen je Datei, Aufbewahrung 7/30/60/120 Tage | P0 | implementiert (Versionen je Upload, Obergrenze 1-32, Fristen in Tagen) |
+| F4.2 | FIFO und "Intelliversioning" (signifikante Versionen) | P1 | teilweise (FIFO; gestaffelte Variante ist eine Annahme, am Original zu prüfen) |
+| F4.3 | Deduplizierung über Versionen | P1 | implementiert (Blöcke inhaltsadressiert, Aufräumen verwaister Blöcke) |
 | F4.4 | Version Explorer (minutengenau, ansehen/laden/wiederherstellen) | P1 | offen |
 
 ## F5 Freigabe

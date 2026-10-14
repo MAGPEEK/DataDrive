@@ -127,6 +127,29 @@ describe.skipIf(url === undefined)("postgres adapters", () => {
     expect(await versions.findById("nope")).toBeNull();
   });
 
+  it("lists, prunes and reports the blocks of versions", async () => {
+    const versions = new PgFileVersionRepository(pool);
+    const base = { nodeId: "f1", size: 1, contentHash: "c", authorId: "u1" };
+    await versions.save({
+      ...base,
+      id: "v2",
+      blockHashes: ["h2", "h3"],
+      createdAt: new Date("2030-01-01T00:00:00Z"),
+    });
+    await versions.save({
+      ...base,
+      id: "v3",
+      blockHashes: ["h3"],
+      createdAt: new Date("2030-01-02T00:00:00Z"),
+    });
+    expect((await versions.listForNode("f1")).map((v) => v.id)).toEqual(["v3", "v2", "v1"]);
+    expect([...(await versions.referencedBlockHashes())].sort()).toEqual(["h1", "h2", "h3"]);
+    await versions.delete(["v2", "v3"]);
+    await versions.delete([]);
+    expect((await versions.listForNode("f1")).map((v) => v.id)).toEqual(["v1"]);
+    expect([...(await versions.referencedBlockHashes())].sort()).toEqual(["h1", "h2"]);
+  });
+
   it("sums used bytes per drive", async () => {
     const nodes = new PgNodeRepository(pool);
     expect(await nodes.usedBytes("u1")).toBe(9_000_000_000);

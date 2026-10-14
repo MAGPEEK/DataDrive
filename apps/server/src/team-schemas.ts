@@ -12,6 +12,8 @@ const settingsSchema = {
     watermark: { type: "boolean" },
     fileLocking: { type: "boolean" },
     maxVersions: { type: "integer", minimum: 1, maximum: 32 },
+    versionPolicy: { type: "string", enum: ["fifo", "intelligent"] },
+    retentionDays: { type: ["integer", "null"], minimum: 1, maximum: 3650 },
   },
   additionalProperties: false,
 };

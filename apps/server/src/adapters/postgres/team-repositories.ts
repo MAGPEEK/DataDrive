@@ -16,6 +16,8 @@ interface DriveRow {
   watermark: boolean;
   file_locking: boolean;
   max_versions: number;
+  version_policy: "fifo" | "intelligent";
+  retention_days: number | null;
   created_at: Date;
 }
 
@@ -29,6 +31,8 @@ const toDrive = (row: DriveRow): Drive => ({
     watermark: row.watermark,
     fileLocking: row.file_locking,
     maxVersions: row.max_versions,
+    versionPolicy: row.version_policy,
+    retentionDays: row.retention_days,
   },
   createdAt: row.created_at,
 });
@@ -50,12 +54,13 @@ export class PgDriveRepository implements DriveRepository {
 
   async save(drive: Drive): Promise<void> {
     await this.pool.query(
-      `INSERT INTO drives (id, kind, name, quota_bytes, restrict_downloads, watermark, file_locking, max_versions, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO drives (id, kind, name, quota_bytes, restrict_downloads, watermark, file_locking, max_versions, version_policy, retention_days, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (id) DO UPDATE SET
          name = EXCLUDED.name, quota_bytes = EXCLUDED.quota_bytes,
          restrict_downloads = EXCLUDED.restrict_downloads, watermark = EXCLUDED.watermark,
-         file_locking = EXCLUDED.file_locking, max_versions = EXCLUDED.max_versions`,
+         file_locking = EXCLUDED.file_locking, max_versions = EXCLUDED.max_versions,
+         version_policy = EXCLUDED.version_policy, retention_days = EXCLUDED.retention_days`,
       [
         drive.id,
         drive.kind,
@@ -65,6 +70,8 @@ export class PgDriveRepository implements DriveRepository {
         drive.settings.watermark,
         drive.settings.fileLocking,
         drive.settings.maxVersions,
+        drive.settings.versionPolicy,
+        drive.settings.retentionDays,
         drive.createdAt,
       ],
     );

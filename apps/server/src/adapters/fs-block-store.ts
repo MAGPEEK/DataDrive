@@ -1,6 +1,15 @@
-import type { BlockStore } from "@datadrive/application";
+import type { BlockStore, StoredBlock } from "@datadrive/application";
 import { randomUUID } from "node:crypto";
-import { access, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  readdir,
+  readFile,
+  rename,
+  stat,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 const HASH_PATTERN = /^[0-9a-f]{64}$/u;
@@ -33,5 +42,19 @@ export class FsBlockStore implements BlockStore {
 
   async get(hash: string): Promise<Uint8Array> {
     return readFile(this.pathFor(hash));
+  }
+
+  async *list(): AsyncGenerator<StoredBlock> {
+    for (const shard of await readdir(this.root).catch(() => [])) {
+      for (const name of await readdir(join(this.root, shard))) {
+        if (!HASH_PATTERN.test(name)) continue;
+        const info = await stat(join(this.root, shard, name));
+        yield { hash: name, modifiedAt: info.mtime };
+      }
+    }
+  }
+
+  async delete(hash: string): Promise<void> {
+    await unlink(this.pathFor(hash)).catch(() => undefined);
   }
 }
