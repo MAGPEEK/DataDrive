@@ -2,7 +2,7 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["**/dist/**", "**/node_modules/**"] },
+  { ignores: ["**/dist/**", "**/node_modules/**", "**/*.mjs"] },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {
@@ -13,7 +13,14 @@ export default tseslint.config(
     },
   },
   {
-    files: ["**/*.test.ts"],
+    // React components are mostly markup; they may be longer, but stay small and focused.
+    files: ["apps/web/**/*.tsx"],
+    rules: {
+      "max-lines-per-function": ["error", { max: 80, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    files: ["**/*.test.ts", "**/*.test.tsx"],
     rules: { "max-lines-per-function": "off", "max-params": "off" },
   },
 );

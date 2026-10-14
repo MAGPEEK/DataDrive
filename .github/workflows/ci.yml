@@ -21,3 +21,5 @@ jobs:
         run: docker compose -f compose.dev.yaml run --rm dev pnpm test
       - name: Build server image
         run: docker build --target server -t datadrive-server .
+      - name: Build web image
+        run: docker build --target web -t datadrive-web .

@@ -1,6 +1,7 @@
 import {
   createFolderUseCase,
   listChildrenUseCase,
+  listTrashUseCase,
   restoreNodeUseCase,
   trashNodeUseCase,
   type Actor,
@@ -125,7 +126,27 @@ function registerFolderRoutes(app: FastifyInstance, deps: Dependencies): void {
   );
 }
 
+const trashListSchema = {
+  tags: ["nodes"],
+  summary: "List the trash of a drive (editors and managers)",
+  querystring: {
+    type: "object",
+    properties: { driveId: { type: "string" } },
+    additionalProperties: false,
+  },
+  response: { 200: { type: "array", items: nodeSchema } },
+};
+
 function registerTrashRoutes(app: FastifyInstance, deps: Dependencies): void {
+  app.get<{ Querystring: { driveId?: string } }>(
+    "/api/v1/trash",
+    { schema: trashListSchema },
+    async (req) => {
+      const trashed = await listTrashUseCase(deps, currentActor(req), req.query.driveId);
+      return trashed.map(toNodeDto);
+    },
+  );
+
   app.post<{ Params: IdParams }>("/api/v1/nodes/:id/trash", { schema: trashSchema }, async (req) =>
     toNodeDto(await trashNodeUseCase(deps, currentActor(req), req.params.id)),
   );

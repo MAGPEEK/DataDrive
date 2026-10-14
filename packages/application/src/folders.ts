@@ -71,6 +71,17 @@ export async function listChildrenUseCase(
   return children.filter((node) => node.trashedAt === null);
 }
 
+/** The trash of a drive; only members who may change content (editor, manager) can see it. */
+export async function listTrashUseCase(
+  deps: Dependencies,
+  actor: Actor,
+  driveId: string | undefined,
+): Promise<DriveNode[]> {
+  const id = driveId ?? actor.id;
+  await requireDriveAccess(deps, actor, { driveId: id, permission: "write" });
+  return deps.nodes.listTrashed(id);
+}
+
 export async function trashNodeUseCase(
   deps: Dependencies,
   actor: Actor,

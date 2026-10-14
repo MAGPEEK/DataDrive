@@ -9,3 +9,5 @@
 - TypeScript strict, ESLint + Prettier; Rust: clippy + rustfmt.
 - Conventional Commits, kleine PRs, CI bei jedem Push (Lint, Typen, Tests).
 - Code und Bezeichner Englisch, Doku Deutsch.
+- Funktionen: max. 30 Zeilen und 3 Parameter (mehr Daten als Objekt). React-Komponenten (`apps/web/**/*.tsx`) dürfen wegen Markup bis 80 Zeilen lang sein, Komplexität bleibt ≤ 10.
+- Fachlogik (domain, application) kennt weder Fastify, Postgres noch React.

@@ -48,9 +48,26 @@ describe("folder api", () => {
 
     await action("alice", id, "trash");
     expect(await listNodes("alice")).toHaveLength(0);
+    const trash = await ctx.app.inject({
+      method: "GET",
+      url: "/api/v1/trash",
+      headers: await ctx.as("alice"),
+    });
+    expect(trash.json()).toMatchObject([{ id, name: "Fotos" }]);
 
     await action("alice", id, "restore");
     expect(await listNodes("alice")).toHaveLength(1);
+  });
+
+  it("keeps the trash private", async () => {
+    await createFolder("alice", "Geheim");
+    const aliceId = await ctx.idOf("alice");
+    const response = await ctx.app.inject({
+      method: "GET",
+      url: `/api/v1/trash?driveId=${aliceId}`,
+      headers: await ctx.as("bob"),
+    });
+    expect(response.statusCode).toBe(404);
   });
 
   it("maps domain errors to http status codes", async () => {

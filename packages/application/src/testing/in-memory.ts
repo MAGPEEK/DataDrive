@@ -36,6 +36,12 @@ export class InMemoryNodeRepository implements NodeRepository {
     this.store.set(node.id, node);
   }
 
+  async listTrashed(driveId: string): Promise<DriveNode[]> {
+    return [...this.store.values()]
+      .filter((n) => n.driveId === driveId && n.trashedAt !== null)
+      .sort((a, b) => (b.trashedAt as Date).getTime() - (a.trashedAt as Date).getTime());
+  }
+
   async usedBytes(driveId: string): Promise<number> {
     return [...this.store.values()]
       .filter((n) => n.driveId === driveId)

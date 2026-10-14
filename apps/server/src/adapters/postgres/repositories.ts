@@ -155,6 +155,14 @@ export class PgNodeRepository implements NodeRepository {
     return result.rows.map(toNode);
   }
 
+  async listTrashed(driveId: string): Promise<DriveNode[]> {
+    const result = await this.pool.query<NodeRow>(
+      "SELECT * FROM nodes WHERE drive_id = $1 AND trashed_at IS NOT NULL ORDER BY trashed_at DESC",
+      [driveId],
+    );
+    return result.rows.map(toNode);
+  }
+
   async usedBytes(driveId: string): Promise<number> {
     const result = await this.pool.query<{ total: string }>(
       "SELECT COALESCE(SUM(size), 0) AS total FROM nodes WHERE drive_id = $1",

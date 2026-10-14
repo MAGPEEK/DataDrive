@@ -27,7 +27,10 @@ Der Aufbau orientiert sich funktional an Diensten wie Synology Drive.
   eines anderen Produkts wird übernommen. DataDrive steht in keiner Verbindung zu Synology.
 
 ## Stand
-M0 – Fundament: Container-Gerüst, CI und ein Health-Endpunkt laufen. Funktionen folgen ab M1 (siehe [Roadmap](docs/ROADMAP.md)).
+M0 Fundament und M1 Server-Kern sind weit fortgeschritten, das Web-Frontend (React) ist gestartet:
+Anmeldung mit Einmalcode, persönliche Laufwerke und Team-Ordner mit Rollen, Gruppen, Quotas, Ordner, Dateien
+mit Blockspeicher und Versionen, Papierkorb, Deutsch/Englisch. Details und offene Punkte: [Spezifikation](docs/spec/features.md),
+[Roadmap](docs/ROADMAP.md).
 
 ## Dokumentation
 - [Funktionsspezifikation](docs/spec/features.md)
@@ -35,6 +38,8 @@ M0 – Fundament: Container-Gerüst, CI und ein Health-Endpunkt laufen. Funktion
 - [ADR 0002 Container](docs/adr/0002-containers.md), [ADR 0003 Sync-Protokoll](docs/adr/0003-sync-protocol.md)
 - [Clean-Code-Regeln](docs/CLEAN-CODE.md)
 - [Roadmap](docs/ROADMAP.md)
+- [API-Beschreibung (OpenAPI)](docs/spec/openapi.json), live unter `/openapi.json`
+- [Beobachtungen am Referenzsystem](docs/spec/observations/)
 - Logo: [brand/logo.svg](brand/logo.svg)
 
 ## Entwicklung (alles im Container)
@@ -43,7 +48,7 @@ cp .env.example .env            # Werte anpassen
 docker compose -f compose.dev.yaml run --rm dev pnpm install
 docker compose -f compose.dev.yaml run --rm dev pnpm lint
 docker compose -f compose.dev.yaml run --rm dev pnpm test
-docker compose up -d --build   # Server + Datenbank, http://localhost:3000/health
+docker compose up -d --build   # Datenbank, Server (:3000), Web-Oberfläche (http://localhost:8080)
 ```
 
 ## Lizenz

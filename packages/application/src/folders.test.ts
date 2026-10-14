@@ -3,12 +3,37 @@ import { describe, expect, it } from "vitest";
 import {
   createFolderUseCase,
   listChildrenUseCase,
+  listTrashUseCase,
   restoreNodeUseCase,
   trashNodeUseCase,
 } from "./folders.js";
 import { createWorld } from "./testing/world.js";
 
 const root = { parentId: null };
+
+describe("trash listing", () => {
+  it("lists trashed nodes, newest first, and empties after restore", async () => {
+    const world = createWorld();
+    const alice = await world.user("alice");
+    const clock = world.deps.clock as { advance(ms: number): void };
+    const a = await createFolderUseCase(world.deps, alice, { ...root, name: "A" });
+    const b = await createFolderUseCase(world.deps, alice, { ...root, name: "B" });
+    await trashNodeUseCase(world.deps, alice, a.id);
+    clock.advance(1000);
+    await trashNodeUseCase(world.deps, alice, b.id);
+    const names = (await listTrashUseCase(world.deps, alice, undefined)).map((n) => n.name);
+    expect(names).toEqual(["B", "A"]);
+    await restoreNodeUseCase(world.deps, alice, a.id);
+    expect(await listTrashUseCase(world.deps, alice, undefined)).toHaveLength(1);
+  });
+
+  it("is hidden from other users", async () => {
+    const world = createWorld();
+    const alice = await world.user("alice");
+    const bob = await world.user("bob");
+    await expect(listTrashUseCase(world.deps, bob, alice.id)).rejects.toThrow(NotFoundError);
+  });
+});
 
 describe("folders", () => {
   it("creates and lists folders in the personal drive", async () => {

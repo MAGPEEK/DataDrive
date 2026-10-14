@@ -11,6 +11,8 @@ export interface NodeRepository {
   findById(id: string): Promise<DriveNode | null>;
   listChildren(driveId: string, parentId: string | null): Promise<DriveNode[]>;
   save(node: DriveNode): Promise<void>;
+  /** Nodes of the drive that were moved to the trash, most recently trashed first. */
+  listTrashed(driveId: string): Promise<DriveNode[]>;
   /** Sum of the current file sizes in the drive (trashed items included). */
   usedBytes(driveId: string): Promise<number>;
 }
