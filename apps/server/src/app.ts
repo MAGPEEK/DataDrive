@@ -3,6 +3,7 @@ import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyInstance } from "fastify";
 import { registerAuthRoutes, registerAuthentication } from "./auth-routes.js";
+import { registerFileRoutes } from "./file-routes.js";
 import { errorHandler } from "./http-errors.js";
 import { registerNodeRoutes } from "./node-routes.js";
 
@@ -22,5 +23,6 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   app.get("/health", async () => ({ status: "ok" }));
   registerAuthRoutes(app, options.auth, options.secureCookies ?? false);
   registerNodeRoutes(app, options.deps);
+  registerFileRoutes(app, options.deps);
   return app;
 }

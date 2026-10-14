@@ -16,6 +16,7 @@ FROM node:22-alpine AS server
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build /out .
+RUN mkdir -p /data/blocks && chown -R node:node /data
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=10s --timeout=3s --retries=5 \

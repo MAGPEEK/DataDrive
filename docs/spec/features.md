@@ -9,7 +9,7 @@ Priorität: P0 Kern, P1 Ausbau, P2 Erweiterung.
 |---|---|---|---|
 | F1.1 | Benutzer, Gruppen, Rollen, Anmeldung (2FA) | P0 | teilweise (Passwort, Sitzung, TOTP, Admin-Anlage; Gruppen fehlen) |
 | F1.2 | Persönlicher Bereich je Benutzer | P0 | teilweise (Ordner, Postgres) |
-| F1.3 | Team-Ordner mit Rechten (lesen/schreiben/verwalten) | P0 | offen |
+| F1.3 | Team-Ordner mit Rechten (lesen/schreiben/verwalten) | P0 | offen (Rechte folgen) |
 | F1.4 | Ansicht "Für mich freigegeben" | P0 | offen |
 | F1.5 | Persönliche und gemeinsame Labels | P1 | offen |
 | F1.6 | Papierkorb, Suche, Zuletzt verwendet | P1 | teilweise (Papierkorb, Postgres) |

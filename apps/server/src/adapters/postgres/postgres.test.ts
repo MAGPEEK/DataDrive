@@ -1,9 +1,14 @@
-import type { DriveNode, User } from "@datadrive/domain";
+import type { DriveNode, FileVersion, User } from "@datadrive/domain";
 import { randomUUID } from "node:crypto";
 import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createPool, migrate } from "./database.js";
-import { PgNodeRepository, PgSessionRepository, PgUserRepository } from "./repositories.js";
+import {
+  PgFileVersionRepository,
+  PgNodeRepository,
+  PgSessionRepository,
+  PgUserRepository,
+} from "./repositories.js";
 
 const url = process.env.TEST_DATABASE_URL;
 const schema = `t_${randomUUID().replaceAll("-", "")}`;
@@ -26,8 +31,11 @@ const folder = (id: string, name: string, parentId: string | null = null): Drive
   parentId,
   name,
   kind: "folder",
+  size: 0,
   createdAt: now,
+  modifiedAt: now,
   trashedAt: null,
+  versionId: null,
 });
 
 describe.skipIf(url === undefined)("postgres adapters", () => {
@@ -82,5 +90,26 @@ describe.skipIf(url === undefined)("postgres adapters", () => {
   it("enforces unique live names even if the domain check is bypassed", async () => {
     const nodes = new PgNodeRepository(pool);
     await expect(nodes.save(folder("d", "BETA"))).rejects.toThrow(/nodes_live_name_idx/u);
+  });
+
+  it("stores files with versions and block lists", async () => {
+    const nodes = new PgNodeRepository(pool);
+    const versions = new PgFileVersionRepository(pool);
+    const file: DriveNode = { ...folder("f1", "report.pdf"), kind: "file" };
+    await nodes.save(file);
+    const version: FileVersion = {
+      id: "v1",
+      nodeId: "f1",
+      size: 9_000_000_000,
+      blockHashes: ["h1", "h2"],
+      contentHash: "c1",
+      createdAt: now,
+      authorId: "u1",
+    };
+    await versions.save(version);
+    await nodes.save({ ...file, size: version.size, versionId: "v1", modifiedAt: now });
+    expect(await versions.findById("v1")).toEqual(version);
+    expect(await nodes.findById("f1")).toMatchObject({ size: 9_000_000_000, versionId: "v1" });
+    expect(await versions.findById("nope")).toBeNull();
   });
 });

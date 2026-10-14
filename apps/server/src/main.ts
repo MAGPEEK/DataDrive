@@ -6,14 +6,19 @@ import {
 import { randomUUID } from "node:crypto";
 import { Argon2Hasher } from "./adapters/argon2-hasher.js";
 import { createPool, migrate } from "./adapters/postgres/database.js";
+import { FsBlockStore } from "./adapters/fs-block-store.js";
 import {
+  PgFileVersionRepository,
   PgNodeRepository,
   PgSessionRepository,
   PgUserRepository,
 } from "./adapters/postgres/repositories.js";
+import { Sha256Hasher } from "./adapters/sha256-hasher.js";
 import { RandomTokenCodec } from "./adapters/token-codec.js";
 import { Rfc6238Totp } from "./adapters/totp.js";
 import { buildApp } from "./app.js";
+
+const BLOCK_SIZE_BYTES = 4 * 1024 * 1024;
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -36,7 +41,15 @@ async function main(): Promise<void> {
 
   const clock = { now: () => new Date() };
   const ids = { next: () => randomUUID() };
-  const deps: Dependencies = { nodes: new PgNodeRepository(pool), clock, ids };
+  const deps: Dependencies = {
+    nodes: new PgNodeRepository(pool),
+    versions: new PgFileVersionRepository(pool),
+    blocks: new FsBlockStore(process.env.BLOCK_DIR ?? "/data/blocks"),
+    hasher: new Sha256Hasher(),
+    clock,
+    ids,
+    blockSize: BLOCK_SIZE_BYTES,
+  };
   const auth: AuthDependencies = {
     users: new PgUserRepository(pool),
     sessions: new PgSessionRepository(pool),

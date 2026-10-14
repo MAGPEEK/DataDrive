@@ -13,7 +13,9 @@ interface NodeDto {
   parentId: string | null;
   name: string;
   kind: string;
+  size: number;
   createdAt: string;
+  modifiedAt: string;
   trashedAt: string | null;
 }
 
@@ -22,7 +24,9 @@ export const toNodeDto = (node: DriveNode): NodeDto => ({
   parentId: node.parentId,
   name: node.name,
   kind: node.kind,
+  size: node.size,
   createdAt: node.createdAt.toISOString(),
+  modifiedAt: node.modifiedAt.toISOString(),
   trashedAt: node.trashedAt?.toISOString() ?? null,
 });
 
