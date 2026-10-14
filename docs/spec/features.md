@@ -45,6 +45,8 @@ Priorität: P0 Kern, P1 Ausbau, P2 Erweiterung.
 | F5.1 | Interne Freigabe an Benutzer/Gruppen mit Rolle | P0 | offen |
 | F5.2 | Externe Links: Passwort, Ablauf, Download-Limit, Rechte | P0 | offen |
 | F5.3 | Anforderungslinks (Dateien von Externen sammeln) | P1 | offen |
+| F5.4 | Admin-Richtlinien: Freigabe erlauben, Passwort-/Ablaufpflicht, maximale Linkdauer, HTTPS erzwingen | P1 | offen |
+| F5.5 | Freigabelink-Bericht exportieren | P2 | offen |
 
 ## F6 Office (Zusammenarbeit)
 | ID | Funktion | Prio | Status |
@@ -79,6 +81,18 @@ Priorität: P0 Kern, P1 Ausbau, P2 Erweiterung.
 | F9.3 | LDAP/Active-Directory-Anbindung | P1 | offen |
 | F9.4 | Gruppenrichtlinien für Client-Sync/-Backup, Massen-Rollout | P2 | offen |
 | F9.5 | Remote-Löschen synchronisierter Dateien | P2 | offen |
+| F9.6 | Team-Ordner verwalten: aktivieren/deaktivieren, je Ordner Versionen, Download-Sperre, Wasserzeichen, Dateisperre | P0 | offen |
+| F9.7 | Version Explorer für Admins: Zeitpunkt (stundengenau), Ansicht als Benutzer, Wiederherstellen | P1 | offen |
+| F9.8 | Speicherverbrauch berechnen (Versionen, Datenbank, Office-Dateien) | P1 | offen |
+| F9.9 | Papierkorb leeren, auch zeitgesteuert | P1 | offen |
+| F9.10 | Inhaltsindex (Volltextsuche), Standard für neue Bereiche | P2 | offen |
+| F9.11 | Sync/Backup für Nicht-Admins erlauben oder sperren | P1 | offen |
+| F9.12 | Dateieigentum an anderen Benutzer übertragen | P1 | offen |
+| F9.13 | Sync-Profile: benannte Regelsätze, Benutzern/Gruppen zugewiesen | P2 | offen |
+| F9.14 | Protokoll exportieren und Protokoll-Aufbewahrung einstellen | P1 | offen |
+| F9.15 | Erweiterte Funktionen schalten (Remote-Wipe, Download-Sperre, Wasserzeichen) als Voraussetzung für Folgefunktionen | P1 | offen |
+| F9.16 | Anzeigename-Standard, E-Mail-Benachrichtigung einrichten | P2 | offen |
+| F9.17 | Gemeinsame Labels verwalten (Besitzer, Rechte, Einladungen) | P1 | offen |
 
 ## F10 Sicherheit
 | ID | Funktion | Prio | Status |
