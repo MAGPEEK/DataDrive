@@ -1,7 +1,10 @@
 export const en = {
   appName: "DataDrive",
   loading: "Loading…",
+  welcomeBack: "Welcome back!",
   signIn: "Sign in",
+  next: "Next",
+  back: "Back to username",
   signingIn: "Signing in…",
   username: "Username",
   password: "Password",
@@ -87,7 +90,10 @@ export type Messages = Record<MessageKey, string>;
 export const de: Messages = {
   appName: "DataDrive",
   loading: "Wird geladen …",
+  welcomeBack: "Willkommen zurück!",
   signIn: "Anmelden",
+  next: "Weiter",
+  back: "Zurück zum Benutzernamen",
   signingIn: "Anmeldung läuft …",
   username: "Benutzername",
   password: "Passwort",

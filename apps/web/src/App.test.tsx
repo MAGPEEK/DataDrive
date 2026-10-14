@@ -29,8 +29,9 @@ const row = (name: string | RegExp) =>
 const queryRow = (name: string) => screen.queryByRole("row", { name: new RegExp(name, "u") });
 
 async function signIn(user: User, password = TEST_PASSWORD) {
-  await user.type(await screen.findByLabelText("Username"), "alice");
-  await user.type(screen.getByLabelText("Password"), password);
+  await user.type(await screen.findByRole("textbox", { name: "Username" }), "alice");
+  await user.click(screen.getByRole("button", { name: "Next" }));
+  await user.type(await screen.findByLabelText("Password"), password);
   await user.click(screen.getByRole("button", { name: "Sign in" }));
 }
 
@@ -59,7 +60,7 @@ describe("sign in", () => {
   it("shows the login page when there is no session", async () => {
     start({ signedIn: false });
     render(<App />);
-    expect(await screen.findByRole("button", { name: "Sign in" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Welcome back!" })).toBeInTheDocument();
   });
 
   it("signs in and shows the personal drive", async () => {
@@ -87,7 +88,7 @@ describe("sign in", () => {
     const user = userEvent.setup();
     render(<App />);
     await signIn(user);
-    await user.type(await screen.findByLabelText(/One-time code/u), TEST_OTP);
+    await user.type(await screen.findByLabelText("One-time code"), TEST_OTP);
     await user.click(screen.getByRole("button", { name: "Sign in" }));
     expect(await screen.findByRole("navigation", { name: "Categories" })).toBeInTheDocument();
   });
@@ -97,7 +98,7 @@ describe("sign in", () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(await screen.findByRole("button", { name: "Sign out" }));
-    expect(await screen.findByRole("button", { name: "Sign in" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Welcome back!" })).toBeInTheDocument();
   });
 
   it("switches between English and German and remembers the choice", async () => {
