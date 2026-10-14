@@ -3,6 +3,8 @@ export * from "./access.js";
 export * from "./auth-ports.js";
 export * from "./auth.js";
 export * from "./folders.js";
+export * from "./nodes-edit.js";
+export * from "./catalog.js";
 export * from "./files.js";
 export * from "./teams.js";
 export * from "./testing/in-memory.js";

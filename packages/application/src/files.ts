@@ -1,15 +1,17 @@
 import {
+  ForbiddenError,
   NameConflictError,
   NotFoundError,
   QuotaExceededError,
   attachVersion,
+  capabilitiesFor,
   createFile,
   findLiveSibling,
   type Drive,
   type DriveNode,
   type FileVersion,
 } from "@datadrive/domain";
-import { requireNodeAccess, type Actor } from "./access.js";
+import { requireNodeAccess, roleIn, type Actor } from "./access.js";
 import { resolveLocation, type Location } from "./folders.js";
 import type { Dependencies } from "./ports.js";
 
@@ -163,6 +165,8 @@ export async function downloadFileUseCase(
 ): Promise<Download> {
   const { node, drive } = await requireNodeAccess(deps, actor, { nodeId: id, permission: "read" });
   if (node.kind !== "file" || node.trashedAt !== null) throw new NotFoundError(id);
+  const role = await roleIn(deps, actor, node.driveId);
+  if (!capabilitiesFor(role, drive.settings).canDownload) throw new ForbiddenError();
   const version = node.versionId === null ? null : await deps.versions.findById(node.versionId);
   if (version === null) throw new NotFoundError(id);
   return { node, drive, version, content: readBlocks(deps, version) };

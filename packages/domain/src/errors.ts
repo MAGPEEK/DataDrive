@@ -32,6 +32,12 @@ export class NotInTrashError extends DomainError {
   }
 }
 
+export class InvalidMoveError extends DomainError {
+  constructor(reason: string) {
+    super("invalid_move", reason);
+  }
+}
+
 export class ForbiddenError extends DomainError {
   constructor(message = "You are not allowed to do this") {
     super("forbidden", message);

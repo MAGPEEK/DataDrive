@@ -78,6 +78,33 @@ export function moveToTrash(node: DriveNode, now: Date): DriveNode {
   return node.trashedAt === null ? { ...node, trashedAt: now } : node;
 }
 
+function assertFree(node: DriveNode, name: string, siblings: readonly DriveNode[]): void {
+  const clash = siblings.some(
+    (s) => s.id !== node.id && s.trashedAt === null && sameName(s.name, name),
+  );
+  if (clash) throw new NameConflictError(name);
+}
+
+export function renameNode(
+  node: DriveNode,
+  name: string,
+  siblings: readonly DriveNode[],
+): DriveNode {
+  if (!isValidNodeName(name)) throw new InvalidNameError(name);
+  assertFree(node, name, siblings);
+  return { ...node, name };
+}
+
+/** Moves a node below another parent (null = drive root); `siblings` are the nodes of the target. */
+export function moveNode(
+  node: DriveNode,
+  parentId: string | null,
+  siblings: readonly DriveNode[],
+): DriveNode {
+  assertFree(node, node.name, siblings);
+  return { ...node, parentId };
+}
+
 export function restoreFromTrash(node: DriveNode, siblings: readonly DriveNode[]): DriveNode {
   const clash = siblings.some(
     (s) => s.id !== node.id && s.trashedAt === null && sameName(s.name, node.name),

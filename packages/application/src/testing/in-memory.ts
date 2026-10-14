@@ -19,6 +19,7 @@ import type {
   Member,
   MembershipRepository,
   NodeRepository,
+  StarRepository,
 } from "../ports.js";
 
 export class InMemoryNodeRepository implements NodeRepository {
@@ -42,10 +43,48 @@ export class InMemoryNodeRepository implements NodeRepository {
       .sort((a, b) => (b.trashedAt as Date).getTime() - (a.trashedAt as Date).getTime());
   }
 
+  async search(driveIds: readonly string[], term: string, limit: number): Promise<DriveNode[]> {
+    const needle = term.toLowerCase();
+    return [...this.store.values()]
+      .filter((n) => driveIds.includes(n.driveId) && n.trashedAt === null)
+      .filter((n) => n.name.toLowerCase().includes(needle))
+      .slice(0, limit);
+  }
+
+  async recentFiles(driveIds: readonly string[], limit: number): Promise<DriveNode[]> {
+    return [...this.store.values()]
+      .filter((n) => driveIds.includes(n.driveId) && n.kind === "file" && n.trashedAt === null)
+      .sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime())
+      .slice(0, limit);
+  }
+
+  async findByIds(ids: readonly string[]): Promise<DriveNode[]> {
+    return ids.flatMap((id) => this.store.get(id) ?? []);
+  }
+
   async usedBytes(driveId: string): Promise<number> {
     return [...this.store.values()]
       .filter((n) => n.driveId === driveId)
       .reduce((sum, n) => sum + n.size, 0);
+  }
+}
+
+export class InMemoryStarRepository implements StarRepository {
+  private readonly stars = new Set<string>();
+
+  async set(userId: string, nodeId: string, starred: boolean): Promise<void> {
+    if (starred) this.stars.add(`${userId}|${nodeId}`);
+    else this.stars.delete(`${userId}|${nodeId}`);
+  }
+
+  async starredAmong(userId: string, nodeIds: readonly string[]): Promise<Set<string>> {
+    return new Set(nodeIds.filter((id) => this.stars.has(`${userId}|${id}`)));
+  }
+
+  async listStarredIds(userId: string): Promise<string[]> {
+    return [...this.stars]
+      .filter((k) => k.startsWith(`${userId}|`))
+      .map((k) => k.split("|")[1] as string);
   }
 }
 
@@ -207,6 +246,7 @@ export function testDependencies(blockSize = 4): Dependencies {
   return {
     nodes: new InMemoryNodeRepository(),
     versions: new InMemoryFileVersionRepository(),
+    stars: new InMemoryStarRepository(),
     drives: new InMemoryDriveRepository(),
     memberships: new InMemoryMembershipRepository(groups),
     groups,

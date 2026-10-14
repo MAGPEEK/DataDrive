@@ -1,7 +1,7 @@
 import { downloadFileUseCase, uploadFileUseCase, type Dependencies } from "@datadrive/application";
 import type { FastifyInstance } from "fastify";
 import { Readable } from "node:stream";
-import { currentActor, toNodeDto } from "./node-routes.js";
+import { currentActor, viewOf } from "./node-dto.js";
 
 interface UploadQuery {
   driveId?: string;
@@ -53,7 +53,9 @@ function registerUpload(app: FastifyInstance, deps: Dependencies): void {
         name,
         content,
       });
-      return reply.status(result.created ? 201 : 200).send(toNodeDto(result.node));
+      return reply
+        .status(result.created ? 201 : 200)
+        .send(await viewOf(deps, request, result.node));
     },
   );
 }

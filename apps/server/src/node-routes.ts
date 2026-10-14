@@ -2,42 +2,14 @@ import {
   createFolderUseCase,
   listChildrenUseCase,
   listTrashUseCase,
+  moveNodeUseCase,
+  renameNodeUseCase,
   restoreNodeUseCase,
   trashNodeUseCase,
-  type Actor,
   type Dependencies,
 } from "@datadrive/application";
-import type { DriveNode, User } from "@datadrive/domain";
-import type { FastifyInstance, FastifyRequest } from "fastify";
-
-interface NodeDto {
-  id: string;
-  driveId: string;
-  parentId: string | null;
-  name: string;
-  kind: string;
-  size: number;
-  createdAt: string;
-  modifiedAt: string;
-  trashedAt: string | null;
-}
-
-export const toNodeDto = (node: DriveNode): NodeDto => ({
-  id: node.id,
-  driveId: node.driveId,
-  parentId: node.parentId,
-  name: node.name,
-  kind: node.kind,
-  size: node.size,
-  createdAt: node.createdAt.toISOString(),
-  modifiedAt: node.modifiedAt.toISOString(),
-  trashedAt: node.trashedAt?.toISOString() ?? null,
-});
-
-export const currentActor = (request: FastifyRequest): Actor => {
-  const user = request.user as User;
-  return { id: user.id, role: user.role };
-};
+import type { FastifyInstance } from "fastify";
+import { currentActor, nodeListSchema, nodeSchema, viewOf, viewsOf } from "./node-dto.js";
 
 interface FolderBody {
   driveId?: string | null;
@@ -49,61 +21,93 @@ interface IdParams {
   id: string;
 }
 
-const nullableString = { type: ["string", "null"] };
+const nullableString = { type: ["string", "null"] } as const;
+const tags = ["nodes"];
 
-const nodeSchema = {
-  type: "object",
-  properties: {
-    id: { type: "string" },
-    driveId: { type: "string" },
-    parentId: nullableString,
-    name: { type: "string" },
-    kind: { type: "string", enum: ["file", "folder"] },
-    size: { type: "integer" },
-    createdAt: { type: "string", format: "date-time" },
-    modifiedAt: { type: "string", format: "date-time" },
-    trashedAt: { type: ["string", "null"], format: "date-time" },
+const schemas = {
+  createFolder: {
+    tags,
+    summary: "Create a folder",
+    body: {
+      type: "object",
+      required: ["name"],
+      properties: { driveId: nullableString, parentId: nullableString, name: { type: "string" } },
+      additionalProperties: false,
+    },
+    response: { 201: nodeSchema },
   },
-} as const;
-
-const folderSchema = {
-  tags: ["nodes"],
-  summary: "Create a folder",
-  body: {
-    type: "object",
-    required: ["name"],
-    properties: { driveId: nullableString, parentId: nullableString, name: { type: "string" } },
-    additionalProperties: false,
+  list: {
+    tags,
+    summary: "List the live children of a drive root or folder",
+    querystring: {
+      type: "object",
+      properties: { driveId: { type: "string" }, parentId: { type: "string" } },
+      additionalProperties: false,
+    },
+    response: { 200: nodeListSchema },
   },
-  response: { 201: nodeSchema },
-};
-
-const listSchema = {
-  tags: ["nodes"],
-  summary: "List the live children of a drive root or folder",
-  querystring: {
-    type: "object",
-    properties: { driveId: { type: "string" }, parentId: { type: "string" } },
-    additionalProperties: false,
+  trashList: {
+    tags,
+    summary: "List the trash of a drive (editors and managers)",
+    querystring: {
+      type: "object",
+      properties: { driveId: { type: "string" } },
+      additionalProperties: false,
+    },
+    response: { 200: nodeListSchema },
   },
-  response: { 200: { type: "array", items: nodeSchema } },
+  trash: { tags, summary: "Move a node to the trash", response: { 200: nodeSchema } },
+  restore: { tags, summary: "Restore a node from the trash", response: { 200: nodeSchema } },
+  rename: {
+    tags,
+    summary: "Rename a node",
+    body: {
+      type: "object",
+      required: ["name"],
+      properties: { name: { type: "string" } },
+      additionalProperties: false,
+    },
+    response: { 200: nodeSchema },
+  },
+  move: {
+    tags,
+    summary: "Move a node into a folder of the same drive (parentId null = drive root)",
+    body: {
+      type: "object",
+      required: ["parentId"],
+      properties: { parentId: nullableString },
+      additionalProperties: false,
+    },
+    response: { 200: nodeSchema },
+  },
 };
 
-const trashSchema = {
-  tags: ["nodes"],
-  summary: "Move a node to the trash",
-  response: { 200: nodeSchema },
-};
-const restoreSchema = {
-  tags: ["nodes"],
-  summary: "Restore a node from the trash",
-  response: { 200: nodeSchema },
-};
+function registerReads(app: FastifyInstance, deps: Dependencies): void {
+  app.get<{ Querystring: { driveId?: string; parentId?: string } }>(
+    "/api/v1/nodes",
+    { schema: schemas.list },
+    async (req) => {
+      const { driveId, parentId = null } = req.query;
+      return viewsOf(
+        deps,
+        req,
+        await listChildrenUseCase(deps, currentActor(req), { driveId, parentId }),
+      );
+    },
+  );
 
-function registerFolderRoutes(app: FastifyInstance, deps: Dependencies): void {
+  app.get<{ Querystring: { driveId?: string } }>(
+    "/api/v1/trash",
+    { schema: schemas.trashList },
+    async (req) =>
+      viewsOf(deps, req, await listTrashUseCase(deps, currentActor(req), req.query.driveId)),
+  );
+}
+
+function registerCreate(app: FastifyInstance, deps: Dependencies): void {
   app.post<{ Body: FolderBody }>(
     "/api/v1/folders",
-    { schema: folderSchema },
+    { schema: schemas.createFolder },
     async (req, reply) => {
       const { name, parentId = null, driveId } = req.body;
       const folder = await createFolderUseCase(deps, currentActor(req), {
@@ -111,54 +115,50 @@ function registerFolderRoutes(app: FastifyInstance, deps: Dependencies): void {
         parentId,
         driveId: driveId ?? undefined,
       });
-      return reply.status(201).send(toNodeDto(folder));
-    },
-  );
-
-  app.get<{ Querystring: { driveId?: string; parentId?: string } }>(
-    "/api/v1/nodes",
-    { schema: listSchema },
-    async (req) => {
-      const { driveId, parentId = null } = req.query;
-      const children = await listChildrenUseCase(deps, currentActor(req), { driveId, parentId });
-      return children.map(toNodeDto);
+      return reply.status(201).send(await viewOf(deps, req, folder));
     },
   );
 }
 
-const trashListSchema = {
-  tags: ["nodes"],
-  summary: "List the trash of a drive (editors and managers)",
-  querystring: {
-    type: "object",
-    properties: { driveId: { type: "string" } },
-    additionalProperties: false,
-  },
-  response: { 200: { type: "array", items: nodeSchema } },
-};
-
-function registerTrashRoutes(app: FastifyInstance, deps: Dependencies): void {
-  app.get<{ Querystring: { driveId?: string } }>(
-    "/api/v1/trash",
-    { schema: trashListSchema },
+function registerEdits(app: FastifyInstance, deps: Dependencies): void {
+  app.patch<{ Params: IdParams; Body: { name: string } }>(
+    "/api/v1/nodes/:id",
+    { schema: schemas.rename },
     async (req) => {
-      const trashed = await listTrashUseCase(deps, currentActor(req), req.query.driveId);
-      return trashed.map(toNodeDto);
+      const command = { nodeId: req.params.id, name: req.body.name };
+      return viewOf(deps, req, await renameNodeUseCase(deps, currentActor(req), command));
     },
   );
 
-  app.post<{ Params: IdParams }>("/api/v1/nodes/:id/trash", { schema: trashSchema }, async (req) =>
-    toNodeDto(await trashNodeUseCase(deps, currentActor(req), req.params.id)),
+  app.post<{ Params: IdParams; Body: { parentId: string | null } }>(
+    "/api/v1/nodes/:id/move",
+    { schema: schemas.move },
+    async (req) => {
+      const command = { nodeId: req.params.id, targetParentId: req.body.parentId };
+      return viewOf(deps, req, await moveNodeUseCase(deps, currentActor(req), command));
+    },
+  );
+}
+
+function registerTrash(app: FastifyInstance, deps: Dependencies): void {
+  app.post<{ Params: IdParams }>(
+    "/api/v1/nodes/:id/trash",
+    { schema: schemas.trash },
+    async (req) =>
+      viewOf(deps, req, await trashNodeUseCase(deps, currentActor(req), req.params.id)),
   );
 
   app.post<{ Params: IdParams }>(
     "/api/v1/nodes/:id/restore",
-    { schema: restoreSchema },
-    async (req) => toNodeDto(await restoreNodeUseCase(deps, currentActor(req), req.params.id)),
+    { schema: schemas.restore },
+    async (req) =>
+      viewOf(deps, req, await restoreNodeUseCase(deps, currentActor(req), req.params.id)),
   );
 }
 
 export function registerNodeRoutes(app: FastifyInstance, deps: Dependencies): void {
-  registerFolderRoutes(app, deps);
-  registerTrashRoutes(app, deps);
+  registerReads(app, deps);
+  registerCreate(app, deps);
+  registerEdits(app, deps);
+  registerTrash(app, deps);
 }

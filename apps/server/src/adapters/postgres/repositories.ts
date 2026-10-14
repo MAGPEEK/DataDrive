@@ -163,6 +163,33 @@ export class PgNodeRepository implements NodeRepository {
     return result.rows.map(toNode);
   }
 
+  async search(driveIds: readonly string[], term: string, limit: number): Promise<DriveNode[]> {
+    const pattern = `%${term.toLowerCase().replace(/[\\%_]/gu, "\\$&")}%`;
+    const result = await this.pool.query<NodeRow>(
+      `SELECT * FROM nodes WHERE drive_id = ANY($1) AND trashed_at IS NULL
+         AND lower(name) LIKE $2 ESCAPE '\\' ORDER BY lower(name) LIMIT $3`,
+      [[...driveIds], pattern, limit],
+    );
+    return result.rows.map(toNode);
+  }
+
+  async recentFiles(driveIds: readonly string[], limit: number): Promise<DriveNode[]> {
+    const result = await this.pool.query<NodeRow>(
+      `SELECT * FROM nodes WHERE drive_id = ANY($1) AND kind = 'file' AND trashed_at IS NULL
+         ORDER BY modified_at DESC LIMIT $2`,
+      [[...driveIds], limit],
+    );
+    return result.rows.map(toNode);
+  }
+
+  async findByIds(ids: readonly string[]): Promise<DriveNode[]> {
+    if (ids.length === 0) return [];
+    const result = await this.pool.query<NodeRow>("SELECT * FROM nodes WHERE id = ANY($1)", [
+      [...ids],
+    ]);
+    return result.rows.map(toNode);
+  }
+
   async usedBytes(driveId: string): Promise<number> {
     const result = await this.pool.query<{ total: string }>(
       "SELECT COALESCE(SUM(size), 0) AS total FROM nodes WHERE drive_id = $1",

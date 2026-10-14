@@ -14,6 +14,7 @@ import {
   PgSessionRepository,
   PgUserRepository,
 } from "./adapters/postgres/repositories.js";
+import { PgStarRepository } from "./adapters/postgres/star-repository.js";
 import { Sha256Hasher } from "./adapters/sha256-hasher.js";
 import {
   PgDriveRepository,
@@ -53,6 +54,7 @@ function createRuntime(pool: pg.Pool): Runtime {
   const deps: Dependencies = {
     nodes: new PgNodeRepository(pool),
     versions: new PgFileVersionRepository(pool),
+    stars: new PgStarRepository(pool),
     drives,
     memberships: new PgMembershipRepository(pool),
     groups: new PgGroupRepository(pool),

@@ -10,6 +10,7 @@ import { randomUUID } from "node:crypto";
 import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createPool, migrate } from "./database.js";
+import { PgStarRepository } from "./star-repository.js";
 import {
   PgDriveRepository,
   PgGroupRepository,
@@ -169,5 +170,51 @@ describe.skipIf(url === undefined)("postgres adapters", () => {
     await groups.removeMember("g1", "u2");
     expect(await groups.listMembers("g1")).toEqual([]);
     expect((await groups.findByName("Redaktion"))?.id).toBe("g1");
+  });
+
+  it("searches names case-insensitively and treats wildcards literally", async () => {
+    const nodes = new PgNodeRepository(pool);
+    await nodes.save(folder("s1", "Urlaub_2026"));
+    await nodes.save(folder("s2", "urlaub 100%"));
+    await nodes.save(folder("s3", "Anderes"));
+    const names = async (term: string) =>
+      (await nodes.search(["u1"], term, 10)).map((n) => n.name).sort();
+    expect(await names("URLAUB")).toEqual(["Urlaub_2026", "urlaub 100%"]);
+    expect(await names("_2026")).toEqual(["Urlaub_2026"]);
+    expect(await names("100%")).toEqual(["urlaub 100%"]);
+    expect(await names("%")).toEqual(["urlaub 100%"]);
+    expect(await names("zzz")).toEqual([]);
+  });
+
+  it("lists recent files newest first and loads nodes by id", async () => {
+    const nodes = new PgNodeRepository(pool);
+    const older = {
+      ...folder("r1", "old.txt"),
+      kind: "file" as const,
+      modifiedAt: new Date("2030-01-01T00:00:00Z"),
+    };
+    const newer = {
+      ...folder("r2", "new.txt"),
+      kind: "file" as const,
+      modifiedAt: new Date("2030-01-02T00:00:00Z"),
+    };
+    await nodes.save(older);
+    await nodes.save(newer);
+    const recent = await nodes.recentFiles(["u1"], 2);
+    expect(recent.map((n) => n.name)).toEqual(["new.txt", "old.txt"]);
+    expect((await nodes.findByIds(["r1", "nope"])).map((n) => n.id)).toEqual(["r1"]);
+    expect(await nodes.findByIds([])).toEqual([]);
+  });
+
+  it("keeps stars per user and removes them again", async () => {
+    const stars = new PgStarRepository(pool);
+    await stars.set("u1", "r1", true);
+    await stars.set("u1", "r1", true);
+    await stars.set("u2", "r2", true);
+    expect(await stars.listStarredIds("u1")).toEqual(["r1"]);
+    expect([...(await stars.starredAmong("u1", ["r1", "r2"]))]).toEqual(["r1"]);
+    expect((await stars.starredAmong("u1", [])).size).toBe(0);
+    await stars.set("u1", "r1", false);
+    expect(await stars.listStarredIds("u1")).toEqual([]);
   });
 });

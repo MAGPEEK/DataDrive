@@ -14,7 +14,7 @@ import {
 } from "@datadrive/application";
 import type { Drive, DriveRole, SubjectType } from "@datadrive/domain";
 import type { FastifyInstance } from "fastify";
-import { currentActor } from "./node-routes.js";
+import { currentActor } from "./node-dto.js";
 import { driveSchemas, groupSchemas, memberSchemas } from "./team-schemas.js";
 
 const toDriveDto = (drive: Drive) => ({

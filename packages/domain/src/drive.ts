@@ -59,6 +59,28 @@ export function maxRole(roles: readonly DriveRole[]): DriveRole | null {
   );
 }
 
+/** What a user may do with the content of a drive; clients use it to show only possible actions. */
+export interface Capabilities {
+  readonly canRead: boolean;
+  readonly canWrite: boolean;
+  readonly canDelete: boolean;
+  readonly canRename: boolean;
+  readonly canShare: boolean;
+  readonly canDownload: boolean;
+}
+
+export function capabilitiesFor(role: DriveRole | null, settings: DriveSettings): Capabilities {
+  const canWrite = roleAllows(role, "write");
+  return {
+    canRead: roleAllows(role, "read"),
+    canWrite,
+    canDelete: canWrite,
+    canRename: canWrite,
+    canShare: roleAllows(role, "manage"),
+    canDownload: roleAllows(role, "read") && (!settings.restrictDownloads || canWrite),
+  };
+}
+
 export function createPersonalDrive(userId: string, username: string, now: Date): Drive {
   return {
     id: userId,

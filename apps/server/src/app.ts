@@ -6,6 +6,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { registerAuthRoutes, registerAuthentication } from "./auth-routes.js";
 import { registerFileRoutes } from "./file-routes.js";
 import { errorHandler } from "./http-errors.js";
+import { registerDiscoveryRoutes } from "./discovery-routes.js";
 import { registerNodeRoutes } from "./node-routes.js";
 import { registerTeamRoutes } from "./team-routes.js";
 
@@ -44,6 +45,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   app.get("/openapi.json", { schema: { hide: true } }, async () => app.swagger());
   registerAuthRoutes(app, options.auth, options.secureCookies ?? false);
   registerNodeRoutes(app, options.deps);
+  registerDiscoveryRoutes(app, options.deps);
   registerFileRoutes(app, options.deps);
   registerTeamRoutes(app, options.deps);
   return app;

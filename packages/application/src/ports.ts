@@ -13,8 +13,19 @@ export interface NodeRepository {
   save(node: DriveNode): Promise<void>;
   /** Nodes of the drive that were moved to the trash, most recently trashed first. */
   listTrashed(driveId: string): Promise<DriveNode[]>;
+  /** Live nodes whose name contains the term (case-insensitive), in the given drives. */
+  search(driveIds: readonly string[], term: string, limit: number): Promise<DriveNode[]>;
+  /** Live files in the given drives, most recently modified first. */
+  recentFiles(driveIds: readonly string[], limit: number): Promise<DriveNode[]>;
+  findByIds(ids: readonly string[]): Promise<DriveNode[]>;
   /** Sum of the current file sizes in the drive (trashed items included). */
   usedBytes(driveId: string): Promise<number>;
+}
+
+export interface StarRepository {
+  set(userId: string, nodeId: string, starred: boolean): Promise<void>;
+  starredAmong(userId: string, nodeIds: readonly string[]): Promise<Set<string>>;
+  listStarredIds(userId: string): Promise<string[]>;
 }
 
 export interface FileVersionRepository {
@@ -76,6 +87,7 @@ export interface IdGenerator {
 export interface Dependencies {
   readonly nodes: NodeRepository;
   readonly versions: FileVersionRepository;
+  readonly stars: StarRepository;
   readonly drives: DriveRepository;
   readonly memberships: MembershipRepository;
   readonly groups: GroupRepository;
