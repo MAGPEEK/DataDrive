@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 256" role="img" aria-labelledby="t">
+  <title id="t">DataDrive</title>
+  <rect x="40" y="76" width="176" height="52" rx="26" fill="#0F172A"/>
+  <rect x="40" y="144" width="176" height="52" rx="26" fill="#0EA5E9"/>
+  <circle cx="66" cy="102" r="9" fill="#FFFFFF"/>
+  <circle cx="66" cy="170" r="9" fill="#FFFFFF"/>
+  <text x="256" y="168" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="104" font-weight="600" letter-spacing="-2" fill="#0F172A">DataDrive</text>
+</svg>
