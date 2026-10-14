@@ -32,12 +32,21 @@ importers:
 
   apps/server:
     dependencies:
+      '@datadrive/application':
+        specifier: workspace:*
+        version: link:../../packages/application
       '@datadrive/domain':
         specifier: workspace:*
         version: link:../../packages/domain
       fastify:
         specifier: ^5.2.0
         version: 5.12.7
+
+  packages/application:
+    dependencies:
+      '@datadrive/domain':
+        specifier: workspace:*
+        version: link:../domain
 
   packages/domain: {}
 

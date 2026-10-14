@@ -12,4 +12,8 @@ export default tseslint.config(
       "max-params": ["error", 3],
     },
   },
+  {
+    files: ["**/*.test.ts"],
+    rules: { "max-lines-per-function": "off" },
+  },
 );
