@@ -1,5 +1,13 @@
 import { vi } from "vitest";
-import type { Capabilities, DriveInfo, DriveRole, NodeInfo, Place, User } from "../api/types";
+import type {
+  Capabilities,
+  DriveInfo,
+  DriveRole,
+  NodeInfo,
+  Place,
+  User,
+  VersionInfo,
+} from "../api/types";
 
 export interface Call {
   readonly method: string;
@@ -50,6 +58,7 @@ const sameName = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 export class FakeBackend {
   readonly calls: Call[] = [];
   readonly nodes: NodeInfo[] = [];
+  private readonly history = new Map<string, VersionInfo[]>();
   private signedIn: boolean;
   private counter = 0;
 
@@ -175,7 +184,52 @@ export class FakeBackend {
     if (path === "/api/v1/folders")
       return this.createFolder(body as { name: string; driveId: string; parentId: string | null });
     if (path === "/api/v1/files" && method === "PUT") return this.upload(url);
+    if (path.startsWith("/api/v1/files/")) return this.versionRoute(path);
     return this.nodeRoute(method, path, body);
+  }
+
+  /** Gives a file an explicit history, newest first; the first entry is the current version. */
+  setVersions(file: NodeInfo, sizes: readonly number[]): void {
+    this.history.set(
+      file.id,
+      sizes.map((size, index) => ({
+        id: `${file.id}-v${sizes.length - index}`,
+        size,
+        createdAt: `2026-10-0${sizes.length - index}T10:00:00.000Z`,
+        authorName: "alice",
+        current: index === 0,
+      })),
+    );
+  }
+
+  private versionsOf(fileId: string): VersionInfo[] {
+    const known = this.history.get(fileId);
+    if (known !== undefined) return known;
+    const node = this.nodes.find((n) => n.id === fileId);
+    return node === undefined ? [] : [this.single(node)];
+  }
+
+  private single(node: NodeInfo): VersionInfo {
+    const id = `${node.id}-v1`;
+    return { id, size: node.size, createdAt: node.modifiedAt, authorName: "alice", current: true };
+  }
+
+  private versionRoute(path: string): Reply {
+    const match = /^\/api\/v1\/files\/([^/]+)\/versions(?:\/([^/]+)\/restore)?$/u.exec(path);
+    const node = this.nodes.find((n) => n.id === match?.[1]);
+    if (match === null || node === undefined) return error(404, "not_found");
+    if (match[2] === undefined) return { status: 200, body: this.versionsOf(node.id) };
+    return this.restoreVersion(node, match[2]);
+  }
+
+  private restoreVersion(node: NodeInfo, versionId: string): Reply {
+    if (!node.capabilities.canWrite) return error(403, "forbidden");
+    const list = this.versionsOf(node.id);
+    const source = list.find((v) => v.id === versionId);
+    if (source === undefined) return error(404, "not_found");
+    const copy = { ...source, id: `${node.id}-v${list.length + 1}`, current: true };
+    this.history.set(node.id, [copy, ...list.map((v) => ({ ...v, current: false }))]);
+    return { status: 200, body: this.replace(node.id, (n) => ({ ...n, size: source.size })) };
   }
 
   private list(driveId: string, parentId: string | null): Reply {

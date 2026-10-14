@@ -2,10 +2,12 @@ import type { NodeInfo } from "../api/types";
 import { formatBytes, formatDate } from "../format";
 import { useI18n } from "../i18n/I18nProvider";
 import { Icon } from "../icons";
+import { VersionHistory } from "./VersionHistory";
 
 interface DetailsPanelProps {
   readonly selected: readonly NodeInfo[];
   readonly onClose: () => void;
+  readonly onChanged: () => void;
 }
 
 function Row({ label, value }: { readonly label: string; readonly value: string }) {
@@ -17,7 +19,7 @@ function Row({ label, value }: { readonly label: string; readonly value: string 
   );
 }
 
-export function DetailsPanel({ selected, onClose }: DetailsPanelProps) {
+export function DetailsPanel({ selected, onClose, onChanged }: DetailsPanelProps) {
   const { t, language } = useI18n();
   const [only] = selected;
   return (
@@ -44,6 +46,9 @@ export function DetailsPanel({ selected, onClose }: DetailsPanelProps) {
             <Row label={t("modified")} value={formatDate(only.modifiedAt, language)} />
             <Row label={t("created")} value={formatDate(only.createdAt, language)} />
           </dl>
+          {only.kind === "file" && only.trashedAt === null && (
+            <VersionHistory key={only.id} file={only} onRestored={onChanged} />
+          )}
         </>
       )}
     </aside>

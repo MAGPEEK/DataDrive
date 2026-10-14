@@ -1,5 +1,5 @@
 import { jsonRequest, query, request } from "./http";
-import type { DriveInfo, NodeInfo, PathItem, Place, User } from "./types";
+import type { DriveInfo, NodeInfo, PathItem, Place, User, VersionInfo } from "./types";
 
 export interface Credentials {
   readonly username: string;
@@ -61,4 +61,13 @@ export const api = {
     }),
 
   downloadUrl: (id: string): string => `/api/v1/files/${id}/content`,
+
+  versions: (id: string): Promise<VersionInfo[]> =>
+    request<VersionInfo[]>(`/api/v1/files/${id}/versions`),
+
+  restoreVersion: (id: string, versionId: string): Promise<NodeInfo> =>
+    post<NodeInfo>(`/api/v1/files/${id}/versions/${versionId}/restore`),
+
+  versionDownloadUrl: (id: string, versionId: string): string =>
+    `/api/v1/files/${id}/versions/${versionId}/content`,
 };

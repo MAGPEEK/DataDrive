@@ -48,6 +48,7 @@ const PATHS = {
       <path d="M12 8v4l3 2" />
     </>
   ),
+  restore: <path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v4h4M12 8v4l3 2" />,
   chevron: <path d="m9 6 6 6-6 6" />,
   close: <path d="M6 6l12 12M18 6 6 18" />,
   arrow: <path d="M3 12h17m0 0-6-6m6 6-6 6" />,

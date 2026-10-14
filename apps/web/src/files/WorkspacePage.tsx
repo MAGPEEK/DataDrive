@@ -35,7 +35,9 @@ export function WorkspacePage({ username }: { readonly username: string }) {
             <ListPane ws={ws} location={location} drive={drive} handlers={handlers} />
           )}
         </DropArea>
-        {ws.detailsOpen && <DetailsPanel selected={ws.selected} onClose={ws.toggleDetails} />}
+        {ws.detailsOpen && (
+          <DetailsPanel selected={ws.selected} onClose={ws.toggleDetails} onChanged={ws.refresh} />
+        )}
       </div>
       <UploadTray uploads={ws.uploads} onClear={ws.clearFinished} />
       <Toaster />

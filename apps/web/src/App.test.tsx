@@ -455,6 +455,47 @@ describe("search, recent and details", () => {
   });
 });
 
+describe("version history", () => {
+  async function openHistory(backend: FakeBackend, name: string) {
+    const { user } = await open(backend);
+    await user.click(screen.getByRole("button", { name: "Details" }));
+    await user.click(await row(name));
+    return { user, panel: screen.getByRole("complementary", { name: "Details" }) };
+  }
+
+  it("lists versions, marks the current one and downloads an old one", async () => {
+    const backend = start();
+    backend.setVersions(backend.addFile("doc.txt", 30), [30, 20]);
+    const { user, panel } = await openHistory(backend, "doc.txt");
+    expect(await within(panel).findByText("Current")).toBeInTheDocument();
+    const [, older] = within(panel).getAllByRole("button", { name: /Download version from/u });
+    await user.click(older as HTMLElement);
+    expect(startDownload).toHaveBeenCalledWith(expect.stringMatching(/\/versions\/.+\/content$/u));
+  });
+
+  it("restores an old version and updates the listing", async () => {
+    const backend = start();
+    backend.setVersions(backend.addFile("doc.txt", 3000), [3000, 1000]);
+    const { user, panel } = await openHistory(backend, "doc.txt");
+    await user.click(await within(panel).findByRole("button", { name: /Restore version from/u }));
+    expect(await screen.findByText(/Version from .* restored/u)).toBeInTheDocument();
+    await waitFor(() => expect(backend.find("doc.txt")?.size).toBe(1000));
+    expect(backend.calls.some((c) => c.method === "POST" && c.path.endsWith("/restore"))).toBe(true);
+  });
+
+  it("offers no restore to viewers", async () => {
+    const backend = start({ teamRole: "viewer" });
+    backend.setVersions(backend.addFile("t.txt", 2, { driveId: "t1" }), [2, 1]);
+    const { user } = await open(backend);
+    await user.click(screen.getByRole("button", { name: "Details" }));
+    await user.click(screen.getByRole("button", { name: /Marketing/u }));
+    await user.click(await row("t.txt"));
+    const panel = screen.getByRole("complementary", { name: "Details" });
+    await within(panel).findByText("Current");
+    expect(within(panel).queryByRole("button", { name: /Restore version/u })).toBeNull();
+  });
+});
+
 describe("team drives", () => {
   it("lets viewers read but hides editing actions", async () => {
     const backend = start({ teamRole: "viewer" });

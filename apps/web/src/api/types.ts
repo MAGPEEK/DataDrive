@@ -40,6 +40,14 @@ export interface NodeInfo {
   readonly capabilities: Capabilities;
 }
 
+export interface VersionInfo {
+  readonly id: string;
+  readonly size: number;
+  readonly createdAt: string;
+  readonly authorName: string;
+  readonly current: boolean;
+}
+
 export type Place = {
   readonly driveId: string;
   readonly parentId: string | null;
