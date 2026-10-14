@@ -6,6 +6,7 @@ export interface User {
   readonly username: string;
   readonly role: Role;
   readonly totpEnabled: boolean;
+  readonly disabled?: boolean;
 }
 
 export interface DriveInfo {
@@ -38,6 +39,53 @@ export interface NodeInfo {
   readonly trashedAt: string | null;
   readonly starred: boolean;
   readonly capabilities: Capabilities;
+}
+
+export type VersionPolicy = "fifo" | "intelligent";
+
+export interface DriveSettings {
+  readonly restrictDownloads: boolean;
+  readonly watermark: boolean;
+  readonly fileLocking: boolean;
+  readonly maxVersions: number;
+  readonly versionPolicy: VersionPolicy;
+  readonly retentionDays: number | null;
+}
+
+/** A team folder as the admin console sees it. */
+export interface TeamFolder {
+  readonly id: string;
+  readonly name: string;
+  readonly quotaBytes: number | null;
+  readonly settings: DriveSettings;
+}
+
+export interface Member {
+  readonly subjectType: "user" | "group";
+  readonly subjectId: string;
+  readonly role: DriveRole;
+}
+
+export interface Group {
+  readonly id: string;
+  readonly name: string;
+}
+
+export interface DriveChanges {
+  readonly quotaBytes?: number | null;
+  readonly settings?: Partial<DriveSettings>;
+}
+
+export interface UserChanges {
+  readonly role?: Role;
+  readonly disabled?: boolean;
+  readonly password?: string;
+}
+
+export interface NewUser {
+  readonly username: string;
+  readonly password: string;
+  readonly role: Role;
 }
 
 export interface VersionInfo {

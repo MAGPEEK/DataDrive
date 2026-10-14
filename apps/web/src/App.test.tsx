@@ -480,7 +480,9 @@ describe("version history", () => {
     await user.click(await within(panel).findByRole("button", { name: /Restore version from/u }));
     expect(await screen.findByText(/Version from .* restored/u)).toBeInTheDocument();
     await waitFor(() => expect(backend.find("doc.txt")?.size).toBe(1000));
-    expect(backend.calls.some((c) => c.method === "POST" && c.path.endsWith("/restore"))).toBe(true);
+    expect(backend.calls.some((c) => c.method === "POST" && c.path.endsWith("/restore"))).toBe(
+      true,
+    );
   });
 
   it("offers no restore to viewers", async () => {

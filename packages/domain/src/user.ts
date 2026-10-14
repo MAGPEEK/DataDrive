@@ -60,3 +60,9 @@ export function assertStrongPassword(password: string): void {
   const length = [...password].length;
   if (length < MIN_PASSWORD_LENGTH || length > MAX_PASSWORD_LENGTH) throw new WeakPasswordError();
 }
+
+export class OwnAccountError extends DomainError {
+  constructor() {
+    super("own_account", "You cannot disable or demote your own account");
+  }
+}

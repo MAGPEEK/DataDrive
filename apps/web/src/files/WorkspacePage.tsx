@@ -11,7 +11,13 @@ import { MoveDialog } from "./MoveDialog";
 import { UploadTray } from "./UploadTray";
 import { useItemHandlers } from "./useItemHandlers";
 
-export function WorkspacePage({ username }: { readonly username: string }) {
+interface WorkspacePageProps {
+  readonly username: string;
+  /** Only given to administrators: opens the administration. */
+  readonly onOpenAdmin?: (() => void) | undefined;
+}
+
+export function WorkspacePage({ username, onOpenAdmin }: WorkspacePageProps) {
   const ws = useWorkspace();
   const [moving, setMoving] = useState<readonly NodeInfo[] | null>(null);
   const handlers = useItemHandlers(ws, setMoving);
@@ -24,6 +30,7 @@ export function WorkspacePage({ username }: { readonly username: string }) {
     <>
       <Topbar
         username={username}
+        onOpenAdmin={onOpenAdmin}
         location={location}
         onSearch={(term) => ws.navigate({ kind: "search", term })}
         onClearSearch={() => location?.kind === "search" && ws.home()}

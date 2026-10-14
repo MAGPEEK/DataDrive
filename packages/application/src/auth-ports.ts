@@ -5,6 +5,7 @@ export interface UserRepository {
   findById(id: string): Promise<User | null>;
   findByUsername(username: string): Promise<User | null>;
   count(): Promise<number>;
+  listAll(): Promise<User[]>;
   save(user: User): Promise<void>;
 }
 

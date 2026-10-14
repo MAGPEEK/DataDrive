@@ -45,6 +45,11 @@ export class PgUserRepository implements UserRepository {
     return result.rows[0] === undefined ? null : toUser(result.rows[0]);
   }
 
+  async listAll(): Promise<User[]> {
+    const result = await this.pool.query<UserRow>("SELECT * FROM users ORDER BY username");
+    return result.rows.map(toUser);
+  }
+
   async count(): Promise<number> {
     const result = await this.pool.query<{ n: string }>("SELECT count(*) AS n FROM users");
     return Number(result.rows[0]?.n ?? 0);

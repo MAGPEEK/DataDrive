@@ -13,3 +13,4 @@ export * from "./teams.js";
 export * from "./testing/in-memory.js";
 export * from "./testing/auth-fakes.js";
 export * from "./testing/world.js";
+export * from "./user-admin.js";

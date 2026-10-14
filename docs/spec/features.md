@@ -81,7 +81,8 @@ Priorität: P0 Kern, P1 Ausbau, P2 Erweiterung.
 | F9.3 | LDAP/Active-Directory-Anbindung | P1 | offen |
 | F9.4 | Gruppenrichtlinien für Client-Sync/-Backup, Massen-Rollout | P2 | offen |
 | F9.5 | Remote-Löschen synchronisierter Dateien | P2 | offen |
-| F9.6 | Team-Ordner verwalten: aktivieren/deaktivieren, je Ordner Versionen, Download-Sperre, Wasserzeichen, Dateisperre | P0 | teilweise (anlegen, Quota, Einstellungen speichern; Durchsetzung folgt) |
+| F9.6 | Team-Ordner verwalten: aktivieren/deaktivieren, je Ordner Versionen, Download-Sperre, Wasserzeichen, Dateisperre | P0 | teilweise (Admin-Oberfläche: anlegen, Quota, Versionsregeln, Download-Sperre, Mitglieder; Wasserzeichen/Dateisperre/Aktivieren folgen) |
+| F9.12 | Benutzerverwaltung: anlegen, Rolle ändern, deaktivieren, Passwort zurücksetzen (beendet Sitzungen), Schutz des eigenen Kontos; Gruppen | P0 | implementiert (Löschen und Eigentumsübertragung folgen) |
 | F9.7 | Version Explorer für Admins: Zeitpunkt (stundengenau), Ansicht als Benutzer, Wiederherstellen | P1 | offen |
 | F9.8 | Speicherverbrauch berechnen (Versionen, Datenbank, Office-Dateien) | P1 | offen |
 | F9.9 | Papierkorb leeren, auch zeitgesteuert | P1 | offen |

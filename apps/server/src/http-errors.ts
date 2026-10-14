@@ -11,6 +11,7 @@ const STATUS_BY_CODE: Record<string, number> = {
   not_found: 404,
   name_conflict: 409,
   username_taken: 409,
+  own_account: 409,
   not_in_trash: 409,
   quota_exceeded: 413,
 };

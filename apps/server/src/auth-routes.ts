@@ -6,6 +6,7 @@ import {
   loginUseCase,
   logoutUseCase,
   SESSION_TTL_MS,
+  updateUserUseCase,
   type AuthDependencies,
 } from "@datadrive/application";
 import { ForbiddenError, type User } from "@datadrive/domain";
@@ -24,6 +25,7 @@ interface UserDto {
   username: string;
   role: string;
   totpEnabled: boolean;
+  disabled: boolean;
 }
 
 export const toUserDto = (user: User): UserDto => ({
@@ -31,6 +33,7 @@ export const toUserDto = (user: User): UserDto => ({
   username: user.username,
   role: user.role,
   totpEnabled: user.totpEnabled,
+  disabled: user.disabled,
 });
 
 export function readToken(request: FastifyRequest): string | null {
@@ -114,7 +117,36 @@ function registerTotp(app: FastifyInstance, deps: AuthDependencies): void {
   );
 }
 
+const userChangeSchema = {
+  body: {
+    type: "object",
+    properties: {
+      role: { type: "string", enum: ["admin", "user"] },
+      disabled: { type: "boolean" },
+      password: { type: "string" },
+    },
+    additionalProperties: false,
+  },
+};
+
+function registerUserEdit(app: FastifyInstance, deps: AuthDependencies): void {
+  app.patch<{
+    Params: { id: string };
+    Body: { role?: "admin" | "user"; disabled?: boolean; password?: string };
+  }>("/api/v1/users/:id", { schema: userChangeSchema }, async (request) => {
+    const actor = request.user as User;
+    if (actor.role !== "admin") throw new ForbiddenError();
+    const changes = { userId: request.params.id, ...request.body };
+    return toUserDto(await updateUserUseCase(deps, actor.id, changes));
+  });
+}
+
 function registerUserAdmin(app: FastifyInstance, deps: AuthDependencies): void {
+  app.get("/api/v1/users", async (request) => {
+    if ((request.user as User).role !== "admin") throw new ForbiddenError();
+    return (await deps.users.listAll()).map(toUserDto);
+  });
+
   app.post<{ Body: { username: string; password: string; role?: "admin" | "user" } }>(
     "/api/v1/users",
     async (request, reply) => {
@@ -135,4 +167,5 @@ export function registerAuthRoutes(
   registerSession(app, deps);
   registerTotp(app, deps);
   registerUserAdmin(app, deps);
+  registerUserEdit(app, deps);
 }

@@ -40,6 +40,10 @@ export class InMemoryUserRepository implements UserRepository {
     return this.store.size;
   }
 
+  async listAll(): Promise<User[]> {
+    return [...this.store.values()].sort((a, b) => a.username.localeCompare(b.username));
+  }
+
   async save(user: User): Promise<void> {
     this.store.set(user.id, user);
   }

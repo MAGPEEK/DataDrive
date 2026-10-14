@@ -1,5 +1,6 @@
 import { useSession } from "../auth/SessionProvider";
 import { useI18n } from "../i18n/I18nProvider";
+import { Icon } from "../icons";
 import { LanguageSwitch } from "../LanguageSwitch";
 import { Logo } from "../Logo";
 import type { Location } from "../workspace/locations";
@@ -10,9 +11,11 @@ interface TopbarProps {
   readonly location: Location | null;
   readonly onSearch: (term: string) => void;
   readonly onClearSearch: () => void;
+  readonly onOpenAdmin?: (() => void) | undefined;
 }
 
-export function Topbar({ username, location, onSearch, onClearSearch }: TopbarProps) {
+export function Topbar(props: TopbarProps) {
+  const { username, location, onSearch, onClearSearch, onOpenAdmin } = props;
   const { t } = useI18n();
   const { signOut } = useSession();
   return (
@@ -25,6 +28,11 @@ export function Topbar({ username, location, onSearch, onClearSearch }: TopbarPr
       />
       <div className="topbar-right">
         <LanguageSwitch />
+        {onOpenAdmin !== undefined && (
+          <button type="button" className="icon-only" aria-label={t("admin")} onClick={onOpenAdmin}>
+            <Icon name="gear" />
+          </button>
+        )}
         <span className="user">{username}</span>
         <button type="button" onClick={() => void signOut()}>
           {t("signOut")}

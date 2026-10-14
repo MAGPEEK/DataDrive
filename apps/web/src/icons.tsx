@@ -49,6 +49,12 @@ const PATHS = {
     </>
   ),
   restore: <path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v4h4M12 8v4l3 2" />,
+  gear: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
+    </>
+  ),
   chevron: <path d="m9 6 6 6-6 6" />,
   close: <path d="M6 6l12 12M18 6 6 18" />,
   arrow: <path d="M3 12h17m0 0-6-6m6 6-6 6" />,

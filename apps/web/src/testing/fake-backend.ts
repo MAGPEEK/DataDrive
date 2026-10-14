@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { FakeAdmin } from "./fake-admin";
 import type {
   Capabilities,
   DriveInfo,
@@ -23,12 +24,15 @@ interface Reply {
 export interface FakeBackendOptions {
   readonly signedIn?: boolean;
   readonly requireOtp?: boolean;
+  /** Signs in as an administrator, who sees the administration. */
+  readonly admin?: boolean;
   readonly teamRole?: DriveRole | null;
   /** Makes list requests slow, to check that the UI reacts before the server answers. */
   readonly delayMs?: number;
 }
 
 const USER: User = { id: "u1", username: "alice", role: "user", totpEnabled: false };
+const ADMIN: User = { ...USER, role: "admin" };
 const PASSWORD = "correct horse battery";
 const OTP = "123456";
 const NOW = "2026-10-14T12:00:00.000Z";
@@ -58,6 +62,7 @@ const sameName = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 export class FakeBackend {
   readonly calls: Call[] = [];
   readonly nodes: NodeInfo[] = [];
+  readonly admin = new FakeAdmin();
   private readonly history = new Map<string, VersionInfo[]>();
   private signedIn: boolean;
   private counter = 0;
@@ -141,7 +146,7 @@ export class FakeBackend {
     const path = url.pathname;
     if (path === "/auth/login") return this.login(body as Record<string, string>);
     if (path === "/auth/me")
-      return this.signedIn ? { status: 200, body: USER } : error(401, "unauthorized");
+      return this.signedIn ? { status: 200, body: this.me() } : error(401, "unauthorized");
     if (path === "/auth/logout") return this.logout();
     if (!this.signedIn) return error(401, "unauthorized");
     return this.api(method, url, body);
@@ -154,12 +159,16 @@ export class FakeBackend {
       if (credentials.otp !== OTP) return error(401, "invalid_credentials");
     }
     this.signedIn = true;
-    return { status: 200, body: { user: USER, token: "t" } };
+    return { status: 200, body: { user: this.me(), token: "t" } };
   }
 
   private logout(): Reply {
     this.signedIn = false;
     return { status: 204 };
+  }
+
+  private me(): User {
+    return this.options.admin === true ? ADMIN : USER;
   }
 
   private live(): NodeInfo[] {
@@ -169,6 +178,8 @@ export class FakeBackend {
   private api(method: string, url: URL, body: unknown): Reply {
     const path = url.pathname;
     const driveId = url.searchParams.get("driveId") ?? "u1";
+    const administration = this.admin.handle(method, path, body);
+    if (administration !== null) return administration;
     if (path === "/api/v1/drives") return { status: 200, body: this.drives() };
     if (path === "/api/v1/nodes") return this.list(driveId, url.searchParams.get("parentId"));
     if (path === "/api/v1/trash")
